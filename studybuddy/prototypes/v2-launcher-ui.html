@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StudyBuddy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#10141a;--p1:#171d26;--p2:#1e2632;--ln:#2b3545;--tx:#e9edf3;--mt:#8e9bb0;--ac:#ff7a1a;--bl:#5aa9e6;--ok:#4cc38a;--bad:#ef5b5b;box-sizing:border-box}
+*{box-sizing:border-box;margin:0}html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font:15px/1.5 'IBM Plex Sans',system-ui,sans-serif;padding-top:env(safe-area-inset-top,0px)}
+h1,h2,h3,.cd{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;letter-spacing:.02em;line-height:1.05}
+button,input{font:inherit;color:inherit}button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
+.hide{display:none!important}
+.btn{background:var(--ac);color:#1a0d00;font-weight:600;padding:10px 20px;border-radius:4px;transition:filter .15s}
+.btn:hover{filter:brightness(1.1)}.btn.g{background:var(--p2);color:var(--tx);border:1px solid var(--ln)}.btn.g:hover{border-color:var(--mt)}
+.btn:disabled{opacity:.4;pointer-events:none}
+input{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--ln);border-radius:4px}
+label{display:block;font-size:13px;color:var(--mt);margin:14px 0 4px}
+/* shell */
+#shell{display:grid;grid-template-columns:216px 1fr;height:100%}
+aside{background:var(--p1);border-right:1px solid var(--ln);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{font:800 26px 'Barlow Condensed';padding:0 10px 18px;display:flex;gap:8px;align-items:center}.brand i{width:22px;height:22px;background:var(--ac);border-radius:3px;display:block}
+.nv{display:flex;gap:10px;align-items:center;padding:10px;border-radius:4px;color:var(--mt);font-weight:500;text-align:left;width:100%}
+.nv:hover{background:var(--p2);color:var(--tx)}.nv.on{background:var(--p2);color:var(--tx);box-shadow:inset 3px 0 var(--ac)}
+.main{overflow-y:auto;display:flex;flex-direction:column}
+.bar{display:flex;gap:14px;align-items:center;padding:12px 28px;border-bottom:1px solid var(--ln);position:sticky;top:0;background:var(--bg);z-index:5}
+.bar input{max-width:320px}.sp{flex:1}
+.pill{background:var(--p2);border:1px solid var(--ln);padding:5px 12px;border-radius:4px;font-size:13px;white-space:nowrap}
+.pill b{color:var(--ac)}
+.av{width:34px;height:34px;border-radius:4px;background:var(--bl);color:#08131f;font:700 18px 'Barlow Condensed';display:grid;place-items:center}
+.pg{padding:26px 28px 60px;max-width:1180px;width:100%}
+.pg>h1{font-size:40px}.sub{color:var(--mt);margin:4px 0 22px}
+h2{font-size:24px;margin:30px 0 12px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.two{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+.box{background:var(--p1);border:1px solid var(--ln);border-radius:6px;padding:16px}
+.cv{position:relative;border-radius:6px;overflow:hidden;min-height:150px;display:flex;flex-direction:column;justify-content:flex-end;padding:14px;text-align:left;border:1px solid var(--ln);transition:transform .15s,border-color .15s}
+button.cv:hover{transform:translateY(-3px);border-color:var(--tx)}
+.cv .big{position:absolute;right:-6px;top:-14px;font:800 92px/1 'Barlow Condensed';opacity:.16;pointer-events:none}
+.cv h3{font-size:24px;position:relative}.cv small{color:#ffffffb0;position:relative}
+.cv.lg{min-height:280px;padding:26px}.cv.lg h3{font-size:46px}.cv.lg .big{font-size:200px}
+.tg{display:inline-block;font:700 12px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;background:#0008;padding:2px 8px;border-radius:3px;margin-bottom:6px;position:relative;width:max-content}
+.meta{display:flex;gap:12px;font-size:13px;color:var(--mt);flex-wrap:wrap;margin:6px 0}
+.cv .meta{color:#ffffffc0;position:relative}
+.pb{height:5px;background:var(--ln);border-radius:3px;overflow:hidden;margin-top:8px}.pb i{display:block;height:100%;background:var(--ac);transition:width .8s}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:7px 14px;border:1px solid var(--ln);border-radius:4px;background:var(--p1);color:var(--mt);font-weight:500}
+.chip.on{border-color:var(--ac);color:var(--ac);background:#ff7a1a14}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--ln)}.row:last-child{border:0}
+.ck{width:18px;height:18px;border:2px solid var(--mt);border-radius:3px;flex:none}.done .ck{background:var(--ok);border-color:var(--ok)}.done{color:var(--mt)}
+.why{font-size:13px;color:var(--bl);margin-top:6px}
+.wk{display:flex;gap:10px;align-items:flex-end;height:110px}.wk div{flex:1;text-align:center;font-size:12px;color:var(--mt)}.wk i{display:block;background:var(--bl);border-radius:3px 3px 0 0;margin-bottom:4px}.wk .t i{background:var(--ac)}
+.lst{display:flex;gap:14px;align-items:center;padding:12px;background:var(--p1);border:1px solid var(--ln);border-radius:6px;width:100%;text-align:left;margin-bottom:8px}
+.lst:hover{border-color:var(--mt)}.lst .th{width:64px;height:64px;border-radius:4px;flex:none;display:grid;place-items:center;font:800 24px 'Barlow Condensed'}
+.lk{opacity:.5}
+.st{display:inline-block;padding:1px 8px;border-radius:3px;font-size:12px;font-weight:600}.d1{background:#4cc38a22;color:var(--ok)}.d2{background:#ffb02e22;color:#ffb02e}.d3{background:#ef5b5b22;color:var(--bad)}
+/* auth/onb */
+.ctr{min-height:100%;display:grid;place-items:center;padding:20px}
+.card{background:var(--p1);border:1px solid var(--ln);border-radius:8px;padding:30px;width:100%;max-width:460px}
+.card.w{max-width:900px}.card h1{font-size:36px;margin-bottom:6px}
+.steps{display:flex;gap:6px;margin-bottom:22px}.steps i{flex:1;height:4px;background:var(--ln);border-radius:2px}.steps i.d{background:var(--ac)}
+.opt{display:block;width:100%;text-align:left;padding:14px 16px;margin-bottom:10px;background:var(--p2);border:1px solid var(--ln);border-radius:4px}
+.opt:hover{border-color:var(--mt)}.opt.ok{border-color:var(--ok);background:#4cc38a1c}.opt.no{border-color:var(--bad);background:#ef5b5b1c}
+.qq{font-size:26px;font-weight:600;margin:26px 0 18px;line-height:1.3;font-family:'IBM Plex Sans'}
+.ov{position:fixed;inset:0;background:#000b;display:grid;place-items:center;padding:16px;z-index:20}
+.ov .card{max-width:520px}
+.big2{font:800 120px/1 'Barlow Condensed';color:var(--ac)}
+.tr{display:flex;gap:10px;align-items:center;margin:8px 0}.nd{width:44px;height:44px;border-radius:50%;border:2px solid var(--ln);display:grid;place-items:center;font:700 14px 'Barlow Condensed';flex:none}
+.nd.m{border-color:var(--ok);color:var(--ok)}.nd.a{border-color:var(--ac);color:var(--ac)}.ln{flex:1;height:2px;background:var(--ln)}
+@media(max-width:820px){#shell{grid-template-columns:1fr;grid-template-rows:1fr 58px}aside{order:2;flex-direction:row;padding:4px;border-right:0;border-top:1px solid var(--ln)}.brand{display:none}.nv{flex-direction:column;gap:0;font-size:11px;justify-content:center;align-items:center;padding:4px}.nv.on{box-shadow:inset 0 3px var(--ac)}.two{grid-template-columns:1fr}.bar{padding:10px 16px}.pg{padding:20px 16px 40px}.bar input{max-width:none}.pill.x{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div id="shell" class="hide"><aside id="nav"></aside><div class="main"><div class="bar"><input id="q" type="search" placeholder="Search games, subjects, topics" aria-label="Search" oninput="srch(this.value)"><span class="sp"></span><span class="pill x">Streak <b id="sk">6</b> days</span><span class="pill">Lv <b id="lv"></b> · <span id="xp"></span> XP</span><button class="av" id="av" onclick="go('prof')" aria-label="Profile"></button></div><div class="pg" id="pg"></div></div></div>
+<div id="ext"></div><div id="ovl"></div>
+<script>
+const $=s=>document.querySelector(s);
+const P={name:'',course:'',sem:4,skills:[],diff:'Normal',time:'30 min',xp:640,lvl:4,done:[],hist:[]};
+const C={cse:['Core CSE','The Architect',['DBMS|Database Dungeon','DSA|Algorithm Arena','OS|Kernel Quest','CN|Network Breach','SE|Architecture Trial']],
+cseai:['CSE-AI','The Intelligence Engineer',['Python|Code Runner','ML|Model Forge','NN|Neural Core','AI|Logic Protocol','DS|Data Expedition']],
+ai:['Artificial Intelligence','The Neural Pioneer',['Python|Code Runner','AI|Logic Protocol','ML|Model Forge','NN|Neural Core','NLP|Language Nexus']],
+it:['Information Technology','The Systems Operative',['CN|Network Breach','OS|Kernel Quest','DBMS|Database Dungeon','Web|Pixel Forge','Sec|Firewall Siege']],
+ds:['Data Science','The Data Analyst',['Stats|Probability Peaks','Python|Code Runner','ML|Model Forge','DBMS|Database Dungeon','Viz|Insight Atlas']]};
+const HUE={DBMS:205,DSA:28,OS:160,CN:265,SE:340,Python:48,ML:290,NN:190,AI:12,DS:130,Stats:225,NLP:320,Web:100,Sec:0,Viz:175};
+const TOP={DBMS:['ER modelling','Normalization','SQL queries','Transactions'],Python:['Syntax and types','Functions','Collections','File and errors'],ML:['Regression','Classification','Overfitting','Evaluation']};
+const QB={DBMS:[['Which normal form removes partial dependencies on a composite key?',['1NF','2NF','3NF','BCNF'],1,'2NF requires every non-key attribute to depend on the whole key.'],['Which clause filters groups after aggregation?',['WHERE','GROUP BY','HAVING','ORDER BY'],2,'HAVING filters groups; WHERE filters rows before grouping.'],['The "I" in ACID stands for…',['Integrity','Isolation','Indexing','Idempotence'],1,'Isolation: concurrent transactions do not see each other\'s partial work.'],['Which index suits range queries best?',['Hash','B+ tree','Bitmap','None'],1,'B+ trees keep keys sorted with linked leaves.']],
+Python:[['What does len({1,2,2,3}) return?',['4','3','2','Error'],1,'A set drops duplicates, leaving 3 items.'],['Which is mutable?',['tuple','str','list','int'],2,'Lists can be changed in place.'],['What does [x*2 for x in range(3)] give?',['[0,2,4]','[2,4,6]','[0,1,2]','[1,2,3]'],0,'range(3) is 0,1,2, doubled: 0,2,4.'],['Which keyword handles an exception?',['catch','except','rescue','handle'],1,'Python uses try / except.']],
+ML:[['Training accuracy 99%, test accuracy 62%. What is likely?',['Underfitting','Overfitting','Good fit','Data leak only'],1,'A large train/test gap signals overfitting.'],['Which metric suits imbalanced classes better?',['Accuracy','F1 score','R²','MSE'],1,'F1 balances precision and recall.'],['Linear regression predicts…',['A class','A cluster','A continuous value','A rule'],2,'It outputs a numeric value.'],['What does regularization do?',['Adds data','Penalizes complexity','Speeds up training','Removes labels'],1,'It discourages overly complex models.']]};
+const MODES=['Boss Battle','Speedrun','Survival Mode','Skill Trial','Daily Quest','Knowledge Raid'];
+const W=()=>C[P.course||'cse'][2].map(s=>{const[a,b]=s.split('|');return{k:a,n:b}});
+function art(k,big){const h=HUE[k]||220,p=['repeating-linear-gradient(0deg,#ffffff10 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,#ffffff10 0 1px,transparent 1px 22px)','repeating-radial-gradient(circle at 80% 20%,#ffffff12 0 2px,transparent 2px 26px)','repeating-linear-gradient(135deg,#ffffff0e 0 10px,transparent 10px 20px)'][(h/7|0)%3];return`background:${p},linear-gradient(160deg,hsl(${h} 45% 30%),hsl(${(h+30)%360} 50% 14%))`}
+function games(){return W().flatMap((w,i)=>[['Skill Trial',1,8,100],['Speedrun',2,6,150],['Boss Battle',3,12,300]].map(m=>({w,i,mode:m[0],d:m[1],t:m[2],xp:m[3],lock:i>2&&m[0]=='Boss Battle'||i>3,id:w.k+m[0]})))}
+const DL=['','Easy','Medium','Hard'];
+// nav
+const NAV=[['home','Home'],['lib','Library'],['worlds','Worlds'],['prog','Progress'],['ach','Badges']];
+function go(v,a){if(!v)return;ext(false);cur=v;arg=a;$('#nav').innerHTML=`<div class="brand"><i></i>StudyBuddy</div>`+NAV.map(n=>`<button class="nv ${n[0]==v?'on':''}" onclick="go('${n[0]}')">${n[1]}</button>`).join('');$('#lv').textContent=P.lvl;$('#xp').textContent=P.xp+'/1000';$('#av').textContent=(P.name||'P')[0].toUpperCase();$('#pg').innerHTML=V[v](a);document.querySelector('.main').scrollTo(0,0);setTimeout(()=>document.querySelectorAll('.pb i[data-w]').forEach(e=>e.style.width=e.dataset.w+'%'),50)}
+let cur,arg;
+function ext(h){$('#shell').classList.toggle('hide',h===true?true:false);}
+const pb=v=>`<div class="pb"><i style="width:0" data-w="${v}"></i></div>`;
+function cover(g,big){return`<button class="cv ${big?'lg':''}" style="${art(g.w.k)}" onclick="brief('${g.id}')"><span class="big">${g.w.k}</span><span class="tg">${g.mode}</span><h3>${g.w.n}</h3><div class="meta"><span>${g.w.k}</span><span>${DL[g.d]}</span><span>${g.t} min</span><span>+${g.xp} XP</span></div></button>`}
+function lrow(g){return`<button class="lst ${g.lock?'lk':''}" onclick="${g.lock?"toast('Locked. Clear earlier missions in this world first.')":`brief('${g.id}')`}"><span class="th" style="${art(g.w.k)}">${g.w.k.slice(0,3)}</span><span style="flex:1"><b>${g.w.n}</b> <span class="st d${g.d}">${DL[g.d]}</span><div class="meta" style="margin:2px 0 0"><span>${g.mode}</span><span>${g.t} min</span><span>+${g.xp} XP</span></div></span><span style="color:var(--mt);font-size:13px">${g.lock?'Locked':'Play'}</span></button>`}
+const V={
+home(){const g=games(),c=C[P.course||'cse'],wk=[40,70,20,90,55,30,80];
+return`<h1>Good to see you, ${P.name||'Player'}</h1><p class="sub">${c[0]} · Semester ${P.sem} · ${P.time} sessions</p>
+<div class="two"><div>${cover(g[0],1)}
+<h2>Recommended missions</h2><div class="grid">${[g[1],g[2],g[3]].map((x,i)=>`<div>${cover(x)}<div class="why">${['Your last run showed this topic needs more practice.','Your fundamentals look solid. Try it under a timer.','Fits your '+P.time+' session.'][i]}</div></div>`).join('')}</div>
+<h2>Your worlds</h2><div class="grid">${W().map((w,i)=>`<button class="cv" style="${art(w.k)};min-height:110px" onclick="go('worlds',${i})"><span class="big">${w.k}</span><h3>${w.n}</h3><small>${w.k}</small>${pb([62,40,18,0,0][i])}</button>`).join('')}</div></div>
+<div><div class="box"><h3 style="font-size:20px">Daily quests</h3>${[['Finish one mission',1],['Score 80% or higher',0],['Complete a Skill Trial',0]].map(q=>`<div class="row ${q[1]?'done':''}"><span class="ck"></span>${q[0]}</div>`).join('')}</div>
+<div class="box" style="margin-top:14px"><h3 style="font-size:20px">Weekly activity</h3><div class="wk" style="margin-top:12px">${wk.map((h,i)=>`<div class="${i==6?'t':''}"><i style="height:${h}px"></i>${'MTWTFSS'[i]}</div>`).join('')}</div></div>
+<div class="box" style="margin-top:14px"><h3 style="font-size:20px">Recently unlocked</h3><div class="row"><span>🏅</span>First Blood · 1 mission done</div><div class="row"><span>🔥</span>Streak Keeper · 5 days</div></div></div></div>`},
+lib(q){q=(q||'').toLowerCase();let g=games().filter(x=>!q||(x.w.k+x.w.n+x.mode).toLowerCase().includes(q));const f=LF||'All';if(f!='All')g=g.filter(x=>x.mode==f);
+return`<h1>Game library</h1><p class="sub">Missions for ${C[P.course||'cse'][0]}, semester ${P.sem}</p>
+<div class="chips" style="margin-bottom:18px">${['All','Boss Battle','Speedrun','Skill Trial'].map(m=>`<button class="chip ${f==m?'on':''}" onclick="LF='${m}';go('lib','${q}')">${m}</button>`).join('')}</div>
+${g.length?`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-bottom:22px">${g.slice(0,2).map(x=>cover(x)).join('')}</div>${g.slice(2).map(lrow).join('')}`:`<div class="box">No games match "${q}". Clear the search or pick another filter.</div>`}`},
+worlds(i){i=i||0;const w=W()[i],t=TOP[w.k]||['Foundations','Core concepts','Applied problems','Review'];
+return`<h1>Worlds</h1><div class="chips" style="margin:14px 0 20px">${W().map((x,j)=>`<button class="chip ${j==i?'on':''}" onclick="go('worlds',${j})">${x.k}</button>`).join('')}</div>
+<div class="cv lg" style="${art(w.k)}"><span class="big">${w.k}</span><span class="tg">${w.k}</span><h3>${w.n}</h3><div class="meta"><span>${t.length} topics + boss</span><span>Semester ${P.sem}</span></div>${pb([62,40,18,0,0][i])}</div>
+<h2>Mission path</h2><div class="box">${t.map((x,j)=>{const m=j<1+(i==0),a=j==(i==0?1:0),l=!m&&!a;return`<div class="tr"><span class="nd ${m?'m':a?'a':''}">${m?'✓':j+1}</span><span style="flex:1;${l?'opacity:.5':''}"><b>${x}</b><div class="meta" style="margin:0">${m?'Mastered':a?'Recommended next':'Locked'}</div></span><button class="btn ${a?'':'g'}" ${l?'disabled':''} onclick="brief('${w.k}Skill Trial')">${m?'Replay':'Play'}</button></div>`}).join('')}<div class="tr"><span class="nd" style="border-radius:4px">B</span><span style="flex:1;opacity:.6"><b>Boss: ${w.n}</b><div class="meta" style="margin:0">Clear all topics to unlock</div></span><button class="btn g" disabled>Locked</button></div></div>`},
+prog(){const r=['Rookie','Challenger','Scholar','Veteran','Master'];
+return`<h1>Progress</h1><p class="sub">Level ${P.lvl} · ${r[Math.min(4,P.lvl>>1)]}</p><div class="box"><div class="meta"><span>${P.xp} / 1000 XP to level ${P.lvl+1}</span></div>${pb(P.xp/10)}</div>
+<h2>Rank ladder</h2><div class="chips">${r.map((x,i)=>`<span class="chip ${i==Math.min(4,P.lvl>>1)?'on':''}">${x}</span>`).join('')}</div>
+<h2>Skill tree</h2><div class="grid">${W().map((w,i)=>{const t=TOP[w.k]||['Foundations','Core concepts','Applied problems'];return`<div class="box"><h3 style="font-size:20px">${w.k}</h3>${t.map((x,j)=>`<div class="row ${j<(i<2?2-i+(i==0):0)?'done':''}"><span class="ck"></span>${x}</div>`).join('')}</div>`}).join('')}</div>
+<h2>Mission history</h2>${P.hist.length?P.hist.map(h=>`<div class="row"><b>${h[0]}</b><span class="sp"></span>${h[1]}% · +${h[2]} XP</div>`).join(''):'<div class="box">No missions finished yet. Start one from the library.</div>'}`},
+ach(){const a=[['First Blood','Finish a mission',1],['Streak Keeper','5-day streak',1],['Clean Query','Score 80%+ in a mission',P.hist.some(h=>h[1]>=80)],['Speed Demon','Finish a Speedrun',0],['Boss Slayer','Defeat a Boss Battle',0],['Full Stack','Master 3 worlds',0]];
+return`<h1>Badges</h1><p class="sub">${a.filter(x=>x[2]).length} of ${a.length} unlocked</p><div class="grid">${a.map(x=>`<div class="box ${x[2]?'':'lk'}"><div style="font-size:30px">${x[2]?'🏅':'🔒'}</div><h3 style="font-size:20px;margin-top:6px">${x[0]}</h3><div class="meta">${x[1]}</div></div>`).join('')}</div>`},
+prof(){return`<h1>Profile and settings</h1><p class="sub">Your player account</p><div class="box" style="max-width:520px">${[['Player',P.name],['Course',C[P.course||'cse'][0]],['Semester',P.sem],['Difficulty',P.diff],['Study time',P.time]].map(r=>`<div class="row"><span style="color:var(--mt);width:110px">${r[0]}</span>${r[1]}</div>`).join('')}<button class="btn g" style="margin-top:16px" onclick="start('auth')">Log out</button></div>`}};
+let LF='All';function srch(v){if(cur!='lib')cur='lib';go('lib',v);const i=$('#q');i.focus();i.setSelectionRange(v.length,v.length)}
+function toast(t){const e=document.createElement('div');e.setAttribute('role','status');e.style.cssText='position:fixed;left:50%;bottom:76px;transform:translateX(-50%);background:var(--p2);border:1px solid var(--ln);padding:10px 18px;border-radius:4px;z-index:50';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2200)}
+// auth + onboarding
+let ob=0,mode='up';
+function start(s){$('#shell').classList.add('hide');$('#ovl').innerHTML='';s=='auth'?auth():onb()}
+function auth(m){mode=m||mode;const up=mode=='up';$('#ext').innerHTML=`<div class="ctr"><div class="card"><div class="brand" style="padding:0 0 18px"><i></i>StudyBuddy</div><h1>${up?'Create your account':'Log in'}</h1><p style="color:var(--mt)">${up?'Pick your course and start earning XP on real syllabus topics.':'Pick up where you left off.'}</p>${up?'<label for="a1">Player name</label><input id="a1" autocomplete="name">':''}<label for="a2">College email</label><input id="a2" type="email" autocomplete="email"><label for="a3">Password</label><input id="a3" type="password" autocomplete="${up?'new':'current'}-password"><div id="ae" style="color:var(--bad);min-height:24px;margin-top:8px;font-size:14px"></div><button class="btn" style="width:100%" onclick="doAuth()">${up?'Create account':'Log in'}</button><p style="margin-top:14px;color:var(--mt);font-size:14px">${up?'Have an account?':'New here?'} <a href="#" style="color:var(--bl)" onclick="auth('${up?'in':'up'}');return false">${up?'Log in':'Sign up'}</a></p></div></div>`}
+function doAuth(){const up=mode=='up',n=up?$('#a1').value.trim():'Player',e=$('#a2').value.trim();if(!n||!/\S+@\S+\.\S+/.test(e)||$('#a3').value.length<6){$('#ae').textContent='Enter '+(up?'a name, ':'')+'a valid email and a password of 6+ characters.';return}if(up){P.name=n;ob=0;onb()}else{P.name=P.name||'Player';P.course=P.course||'cse';enter()}}
+const OB=['Choose your course','Select your semester','Pick subjects to improve','Set your playstyle'];
+function onb(){$('#ext').innerHTML=`<div class="ctr"><div class="card w"><div class="steps">${OB.map((_,i)=>`<i class="${i<=ob?'d':''}"></i>`).join('')}</div><h1>${OB[ob]}</h1><p style="color:var(--mt);margin-bottom:18px">Step ${ob+1} of 4</p>${[
+`<div class="grid">${Object.entries(C).map(([k,c])=>`<button class="cv" style="${art(c[2][0].split('|')[0])};min-height:130px;${P.course==k?'outline:2px solid var(--ac)':''}" onclick="P.course='${k}';onb()"><span class="tg">${c[1]}</span><h3>${c[0]}</h3></button>`).join('')}</div>`,
+`<div class="chips">${[1,2,3,4,5,6,7,8].map(s=>`<button class="chip ${P.sem==s?'on':''}" onclick="P.sem=${s};onb()">Semester ${s}</button>`).join('')}</div>`,
+`<div class="chips">${P.course?W().map(w=>`<button class="chip ${P.skills.includes(w.k)?'on':''}" aria-pressed="${P.skills.includes(w.k)}" onclick="tg('${w.k}')">${w.k}: ${w.n}</button>`).join(''):''}</div>`,
+`<h3 style="font-size:20px;margin-bottom:8px">Difficulty</h3><div class="chips">${['Chill','Normal','Hardcore'].map(d=>`<button class="chip ${P.diff==d?'on':''}" onclick="P.diff='${d}';onb()">${d}</button>`).join('')}</div><h3 style="font-size:20px;margin:18px 0 8px">Daily study time</h3><div class="chips">${['15 min','30 min','1 hour','2 hours+'].map(d=>`<button class="chip ${P.time==d?'on':''}" onclick="P.time='${d}';onb()">${d}</button>`).join('')}</div>`][ob]}
+<div style="display:flex;justify-content:space-between;margin-top:26px"><button class="btn g" onclick="${ob?'ob--;onb()':"auth('up')"}">Back</button><button class="btn" ${(ob==0&&!P.course)||(ob==2&&!P.skills.length)?'disabled':''} onclick="${ob==3?'enter()':'ob++;onb()'}">${ob==3?'Open command center':'Continue'}</button></div></div></div>`}
+function tg(s){const i=P.skills.indexOf(s);i<0?P.skills.push(s):P.skills.splice(i,1);onb()}
+function enter(){$('#ext').innerHTML='';$('#shell').classList.remove('hide');go('home')}
+// briefing, play, results
+let g,qi,sc,wr,tm,left,al;
+function brief(id){g=games().find(x=>x.id==id)||games()[0];$('#ovl').innerHTML=`<div class="ov" role="dialog" aria-modal="true" aria-label="Mission briefing"><div class="card"><span class="tg" style="background:var(--p2)">${g.mode}</span><h1>${g.w.n}</h1><p style="color:var(--mt)">${g.w.k}</p><p style="margin:14px 0">Objective: answer ${(QB[g.w.k]||QB.DBMS).length} questions with at least 80% accuracy.</p><div class="meta" style="font-size:14px"><span>${DL[g.d]}</span><span>About ${g.t} min</span><span style="color:var(--ok)">Reward +${g.xp} XP</span>${g.mode=='Speedrun'?'<span>15 s per question</span>':''}</div><div style="display:flex;gap:10px;margin-top:20px"><button class="btn g" onclick="$('#ovl').innerHTML=''">Cancel</button><button class="btn" onclick="play()">Start mission</button></div></div></div>`;$('#ovl .btn:last-child').focus()}
+function play(){$('#ovl').innerHTML='';$('#shell').classList.add('hide');qi=0;sc=0;wr=[];al=0;ques()}
+function ques(){clearInterval(tm);const B=QB[g.w.k]||QB.DBMS,d=B[qi];left=g.mode=='Speedrun'?15:0;al=0;
+$('#ext').innerHTML=`<div class="ctr" style="align-items:start"><div style="max-width:760px;width:100%;padding-top:4vh"><div class="meta" style="font-size:14px;align-items:center"><button class="btn g" onclick="if(confirm('Exit mission? Progress will be lost.')){clearInterval(tm);enter()}">Exit</button><span>${g.w.n} · ${g.mode}</span><span class="sp"></span>${left?`<span class="pill" id="tm">${left}s</span>`:''}<span class="pill">Score <b>${sc}</b></span></div>${pb2(qi,B.length)}<div class="qq">${d[0]}</div>${d[1].map((o,i)=>`<button class="opt" onclick="pick(${i})">${o}</button>`).join('')}<div id="fb" role="status" style="min-height:52px;margin:6px 0"></div><button class="btn hide" id="nq" onclick="nxt()">${qi==B.length-1?'See results':'Next question'}</button></div></div>`;
+if(left)tm=setInterval(()=>{left--;$('#tm').textContent=left+'s';if(left<=0)pick(-1)},1000)}
+const pb2=(a,b)=>`<div class="pb" style="margin:12px 0 0"><i style="width:${a/b*100}%"></i></div><div class="meta">Question ${a+1} of ${b}</div>`;
+function pick(i){if(al)return;al=1;clearInterval(tm);const d=(QB[g.w.k]||QB.DBMS)[qi];document.querySelectorAll('.opt').forEach((o,k)=>{o.disabled=true;if(k==d[2])o.classList.add('ok');else if(k==i)o.classList.add('no')});
+if(i==d[2]){sc+=100;$('#fb').innerHTML='<b style="color:var(--ok)">Correct, +100.</b> '+d[3]}else{wr.push(qi);$('#fb').innerHTML='<b style="color:var(--bad)">'+(i<0?'Time is up.':'Incorrect.')+'</b> '+d[3]}$('#nq').classList.remove('hide');$('#nq').focus()}
+function nxt(){const B=QB[g.w.k]||QB.DBMS;qi++;qi>=B.length?res(B):ques()}
+function res(B){const acc=Math.round(sc/B.length),xp=Math.round(g.xp*acc/100);P.xp+=xp;let up=0;if(P.xp>=1000){P.xp-=1000;P.lvl++;up=1}P.hist.unshift([g.w.n+' · '+g.mode,acc,xp]);
+const T=TOP[g.w.k]||['Topic 1','Topic 2','Topic 3','Topic 4'];
+$('#ext').innerHTML=`<div class="ctr"><div class="card w" style="text-align:center"><span class="tg" style="background:var(--p2)">${acc>=80?'Mission complete':'Review needed'}</span><div class="big2">${acc}%</div><p style="color:var(--mt)">Accuracy · Score ${sc} · <b style="color:var(--ok)">+${xp} XP</b>${up?` · <b style="color:var(--ac)">Level ${P.lvl} reached</b>`:''}</p><div class="grid" style="text-align:left;margin:24px 0"><div class="box"><h3 style="font-size:18px;color:var(--ok)">Topics mastered</h3><p>${T.filter((_,i)=>!wr.includes(i)).join(', ')||'None yet'}</p></div><div class="box"><h3 style="font-size:18px;color:var(--bad)">Needs revision</h3><p>${wr.map(i=>T[i]).join(', ')||'Nothing. Clean run.'}</p></div><div class="box"><h3 style="font-size:18px;color:var(--ac)">New badge</h3><p>${acc>=80?'Clean Query':'None this run'}</p></div></div><div style="display:flex;gap:10px;justify-content:center"><button class="btn g" onclick="play()">Retry</button><button class="btn" onclick="enter()">Back to home</button></div></div></div>`}
+start('auth');
+</script></body></html>
