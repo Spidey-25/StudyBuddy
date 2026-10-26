@@ -6,23 +6,25 @@ import math
 import random
 import re
 import uuid
+from .game_content import EXTRA_LEVELS, ROTATING_LEVELS
+from . import code_checks
 
 
 # Public game data is sanitized; private accepted actions remain server-side.
 GAMES = {
-    "cpp-debugger": {"subject":"CPP", "title":"C++ Code Debugger", "mechanic":"code-edit", "objective":"Repair a C++ statement and reason about its behavior.", "instructions":"Replace the faulty line. The server checks a prepared exercise and test expectations; it does not execute submitted code.", "levels":[
+    "cpp-debugger": {"subject":"CPP", "title":"C++ Code Debugger", "mechanic":"code-edit", "objective":"Repair a C++ statement and reason about its behavior.", "instructions":"Replace the faulty line. The server checks it against private, fixed exercise checks; it does not compile or execute submitted code.", "levels":[
         {"prompt":"int sum(int a, int b) { return a - b; }", "task":"Fix the return expression so sum adds its arguments.", "answer":"return a + b;", "tests":["sum(2, 3) == 5", "sum(-1, 1) == 0"], "hint":"The function should combine both arguments using addition."},
         {"prompt":"for (int i = 0; i <= values.size(); ++i) { use(values[i]); }", "task":"Fix the loop bound to avoid reading past the end.", "answer":"i < values.size()", "tests":["empty and non-empty vector bounds"], "hint":"The last valid index is size minus one."}]},
     "cpp-output": {"subject":"CPP", "title":"C++ Output & Logic Challenge", "mechanic":"output-predict", "objective":"Trace C++ expressions and predict their printed output.", "instructions":"Evaluate the expression using integer rules, then enter the output exactly.", "levels":[
         {"prompt":"int x = 7; cout << x / 2 << ' ' << x % 2;", "answer":"3 1", "hint":"Integer division truncates; modulo is the remainder.", "explanation":"7 / 2 is 3 with remainder 1."},
         {"prompt":"int x = 2; cout << x++ << ' ' << x;", "answer":"2 3", "hint":"Post-increment yields the old value before increasing x.", "explanation":"The first output uses 2, then x becomes 3."}]},
-    "java-debugger": {"subject":"JAVA", "title":"Java Code Debugger", "mechanic":"code-edit", "objective":"Repair Java logic using boundary-case reasoning.", "instructions":"Replace the marked faulty line. Prepared tests are checked without running submitted source.", "levels":[
+    "java-debugger": {"subject":"JAVA", "title":"Java Code Debugger", "mechanic":"code-edit", "objective":"Repair Java logic using boundary-case reasoning.", "instructions":"Replace the marked faulty line. Private, fixed exercise checks validate the answer without compiling or running submitted source.", "levels":[
         {"prompt":"static boolean isPositive(int n) { return n >= 0; }", "task":"Zero is not positive. Fix the condition.", "answer":"return n > 0;", "tests":["isPositive(1) true", "isPositive(0) false"], "hint":"Positive means strictly greater than zero."},
         {"prompt":"int total = 0; for (int value : values) total = value;", "task":"Accumulate every value rather than replacing the total.", "answer":"total += value;", "tests":["[1,2,3] gives 6"], "hint":"Add each current value to the running total."}]},
     "java-oop": {"subject":"JAVA", "title":"Object-Oriented Design Lab", "mechanic":"design-choice", "objective":"Choose a class design that preserves encapsulation and polymorphism.", "instructions":"Read the design constraint and select the best implementation approach.", "levels":[
         {"prompt":"Several payment methods must implement pay(amount), while checkout calls them uniformly.", "choices":["Use a Payment interface implemented by each method", "Put all branches in a public global variable", "Duplicate checkout for every payment type"], "answer":0, "hint":"A shared contract lets checkout depend on behavior rather than concrete classes.", "explanation":"An interface provides a common contract and supports polymorphic dispatch."},
         {"prompt":"A bank account balance must never be set to a negative value directly by callers.", "choices":["Make balance private and validate deposits/withdrawals", "Expose balance as public", "Use a static field shared by every account"], "answer":0, "hint":"Hide state and make changes through validated operations.", "explanation":"Encapsulation protects invariants by controlling access to mutable state."}]},
-    "python-debug": {"subject":"PYTHON", "title":"Python Debugging Lab", "mechanic":"code-edit", "objective":"Find and repair common Python logic errors.", "instructions":"Supply the corrected line. The activity checks fixed test cases without evaluating submitted Python.", "levels":[
+    "python-debug": {"subject":"PYTHON", "title":"Python Debugging Lab", "mechanic":"code-edit", "objective":"Find and repair common Python logic errors.", "instructions":"Supply the corrected line. Private, fixed exercise checks validate it without evaluating submitted Python.", "levels":[
         {"prompt":"def contains(items, target):\n    for item in items:\n        if item == target:\n            return False\n    return False", "task":"Return True when a matching item is found.", "answer":"return True", "tests":["contains([1,2], 2) is True", "contains([], 2) is False"], "hint":"A match should immediately return the positive result."},
         {"prompt":"def average(values):\n    return sum(values) / len(values)", "task":"Guard against an empty list before dividing.", "answer":"if not values: return 0", "tests":["average([]) returns 0", "average([2,4]) returns 3"], "hint":"Check whether the sequence is empty before using its length as divisor."}]},
     "python-logic": {"subject":"PYTHON", "title":"Python Logic Builder", "mechanic":"logic-builder", "objective":"Build a correct Boolean condition from reusable logic blocks.", "instructions":"Arrange the condition blocks in order to express the required rule.", "levels":[
@@ -52,13 +54,13 @@ GAMES = {
     "cn-troubleshoot": {"subject":"CN", "title":"Network Troubleshooting Lab", "mechanic":"diagnose", "objective":"Diagnose a connectivity fault from layered network evidence.", "instructions":"Choose the most likely cause supported by the observations.", "levels":[
         {"prompt":"A host can ping 8.8.8.8 but cannot open example.com. What should you investigate first?", "choices":["DNS resolution", "Ethernet cable", "Default gateway routing", "CPU scheduler"], "answer":0, "hint":"IP connectivity works, but name lookup fails.", "explanation":"Successful IP reachability with hostname failure points to DNS."},
         {"prompt":"A host has an IP address but cannot reach devices outside its subnet; local peers respond.", "choices":["Default gateway configuration", "Browser cache", "DNS only", "Application font"], "answer":0, "hint":"Local communication works, so inspect the route off the subnet.", "explanation":"The default gateway forwards traffic to other networks."}]},
-    "web-playground": {"subject":"WEB", "title":"Web Coding Playground", "mechanic":"code-edit", "objective":"Complete a small web coding task and satisfy its prepared checks.", "instructions":"Fill the missing line. This constrained activity validates known exercises; it does not execute arbitrary HTML, CSS or JavaScript.", "levels":[
+    "web-playground": {"subject":"WEB", "title":"Web Coding Playground", "mechanic":"code-edit", "objective":"Complete a small web coding task and satisfy its prepared checks.", "instructions":"Fill the missing line. Private, fixed exercise checks validate known tasks; the activity does not render or execute arbitrary HTML, CSS or JavaScript.", "levels":[
         {"prompt":"<button id=\"save\">Save</button>\n<!-- Add a line that selects this button -->", "task":"Write the JavaScript selector for the button.", "answer":"const saveButton = document.querySelector('#save');", "tests":["selector targets #save", "selection uses querySelector"], "hint":"Use the button's id with a CSS ID selector."},
         {"prompt":".card {\n  /* Add a declaration to center children horizontally */\n}", "task":"Use flexbox to center the card's children horizontally.", "answer":"display: flex; justify-content: center;", "tests":["display flex", "justify-content center"], "hint":"Enable flex layout, then align items on the main axis."}]},
     "web-ui-debug": {"subject":"WEB", "title":"UI Debugging Challenge", "mechanic":"ui-debug", "objective":"Identify and patch common responsive interface defects.", "instructions":"Choose the smallest CSS or semantic fix that resolves the reported issue.", "levels":[
         {"prompt":"A page overflows on narrow phones because a content panel is fixed at 900px.", "choices":["Use width: min(100%, 900px)", "Set width: 1200px", "Hide the entire page below 600px"], "answer":0, "hint":"Constrain the maximum while allowing the panel to shrink.", "explanation":"A fluid width with a maximum prevents horizontal overflow."},
         {"prompt":"A clickable div cannot be reached with Tab and has no accessible name.", "choices":["Use a button element with a clear label", "Add a larger box-shadow", "Set cursor: pointer only"], "answer":0, "hint":"Use the native interactive element for keyboard and assistive technology support.", "explanation":"A button provides keyboard operation and semantics by default."}]},
-    "c-debugger": {"subject":"C", "title":"C Code Debugger", "mechanic":"code-edit", "objective":"Repair a C statement using types and boundary reasoning.", "instructions":"Replace the faulty line. The exercise checks prepared cases without compiling or executing submitted code.", "levels":[
+    "c-debugger": {"subject":"C", "title":"C Code Debugger", "mechanic":"code-edit", "objective":"Repair a C statement using types and boundary reasoning.", "instructions":"Replace the faulty line. Private, fixed exercise checks validate the answer without compiling or executing submitted code.", "levels":[
         {"prompt":"int max(int a, int b) { return a < b ? a : b; }", "task":"Return the larger of the two values.", "answer":"return a > b ? a : b;", "tests":["max(4, 2) == 4", "max(-1, 0) == 0"], "hint":"The conditional should choose a when a is greater."},
         {"prompt":"char text[4] = \"code\";", "task":"Allocate enough space for four letters and the null terminator.", "answer":"char text[5] = \"code\";", "tests":["four characters plus terminator"], "hint":"C strings need one extra byte for '\\0'."}]},
     "c-memory-trace": {"subject":"C", "title":"C Memory Trace", "mechanic":"output-predict", "objective":"Trace pointer and array behavior without running native code.", "instructions":"Enter the displayed expression's result using C array indexing rules.", "levels":[
@@ -85,6 +87,22 @@ GAMES.update({
 
 SUBJECTS = {"C":"C Programming", "CPP":"C++", "JAVA":"Java", "PYTHON":"Python", "DSA":"Data Structures and Algorithms", "DBMS":"Database Management Systems", "OS":"Operating Systems", "CN":"Computer Networks", "WEB":"Web Development", "SE":"Software Engineering", "AI":"Artificial Intelligence", "ML":"Machine Learning", "CYBER":"Cybersecurity", "CLOUD":"Cloud Computing", "EMBEDDED":"Embedded Systems", "IOT":"Internet of Things"}
 
+for _game_id, _levels in EXTRA_LEVELS.items():
+    GAMES[_game_id]["levels"].extend(_levels)
+for _game_id, _levels in ROTATING_LEVELS.items():
+    GAMES[_game_id]["levels"].extend(_levels)
+
+_difficulty_order = {"Easy": 0, "Medium": 1, "Hard": 2, "Expert": 3}
+for _game_id, _game in GAMES.items():
+    _level_count = len(_game["levels"])
+    for _index, _level in enumerate(_game["levels"]):
+        if _game_id == "python-logic":
+            _level.setdefault("difficulty", ("Easy", "Medium", "Hard", "Expert")[min(_index // 3, 3)])
+        elif _level_count >= 4:
+            _level.setdefault("difficulty", "Easy" if _index < 2 else "Medium" if _index == 2 else "Hard")
+        else:
+            _level.setdefault("difficulty", ("Easy", "Medium", "Hard", "Expert")[min(_index, 3)])
+
 
 def public_game(game_id: str) -> dict | None:
     game = GAMES.get(game_id)
@@ -92,7 +110,7 @@ def public_game(game_id: str) -> dict | None:
         return None
     levels = []
     for item in game["levels"]:
-        clean = {k: v for k, v in item.items() if k not in {"answer", "correct", "target", "target_force", "atoms", "bonds", "x", "y", "required", "positions", "conclusion"}}
+        clean = {k: v for k, v in item.items() if k not in {"answer", "correct", "target", "target_force", "atoms", "bonds", "x", "y", "required", "positions", "conclusion", "tests", "test_cases"}}
         for key in ("steps", "blocks", "jobs"):
             if key in clean:
                 clean[key] = list(clean[key]); random.SystemRandom().shuffle(clean[key])
@@ -113,10 +131,44 @@ def public_game(game_id: str) -> dict | None:
             "instructions": game["instructions"], "level_count": len(levels), "levels": levels}
 
 
-def initial_state(game_id: str) -> dict:
+def initial_state(game_id: str, previous_order: list[int] | None = None, *, previous_last: int | None = None) -> dict:
     if game_id not in GAMES:
         raise ValueError("Unknown game.")
-    return {"level": 0, "score": 0, "mistakes": 0, "actions": 0, "complete": False, "events": []}
+    levels = GAMES[game_id]["levels"]
+    if previous_last is not None:
+        previous_order = [previous_last]
+    rng = random.SystemRandom()
+    session_size = min(4, len(levels))
+    previous = {index for index in (previous_order or []) if isinstance(index, int) and 0 <= index < len(levels)}
+    available = [index for index in range(len(levels)) if index not in previous]
+    rng.shuffle(available)
+    # Include as many unseen levels as possible, then fill the rest from the
+    # bank. With a six-level bank this makes two levels new on each replay.
+    unseen_count = min(session_size // 2, len(available))
+    selected = available[:unseen_count]
+    remaining = [index for index in range(len(levels)) if index not in selected]
+    rng.shuffle(remaining)
+    selected.extend(remaining[:session_size - len(selected)])
+    buckets = {}
+    for index in selected:
+        difficulty = levels[index].get("difficulty", "Easy")
+        buckets.setdefault(difficulty, []).append(index)
+    order = []
+    for difficulty in sorted(buckets, key=lambda value: _difficulty_order.get(value, 99)):
+        rng.shuffle(buckets[difficulty])
+        order.extend(buckets[difficulty])
+    return {"level": 0, "level_order": order, "score": 0, "mistakes": 0, "actions": 0, "complete": False, "events": []}
+
+
+def public_session_game(game_id: str, state: dict) -> dict:
+    """Return sanitized game content in the same order as this session."""
+    game = public_game(game_id)
+    order = state.get("level_order") if isinstance(state, dict) else None
+    if not isinstance(order, list) or not order or len(set(order)) != len(order) or any(not isinstance(index, int) or index < 0 or index >= len(game["levels"]) for index in order):
+        return game
+    game["levels"] = [game["levels"][index] for index in order]
+    game["level_count"] = len(game["levels"])
+    return game
 
 
 def _safe_expression(expression: str, values: list[int], operators: list[str], target: int) -> bool:
@@ -148,10 +200,14 @@ def apply_action(game_id: str, state: dict, action: dict) -> tuple[dict, dict]:
         raise ValueError("This session is already complete.")
     game = GAMES[game_id]
     level = int(state.get("level", 0))
-    if level >= len(game["levels"]):
+    order = state.get("level_order")
+    if not isinstance(order, list) or not order or len(set(order)) != len(order) or any(not isinstance(index, int) or index < 0 or index >= len(game["levels"]) for index in order):
+        order = list(range(len(game["levels"])))
+    if level >= len(order):
         state["complete"] = True
         return state, {"complete": True, "correct": True, "message": "All levels complete."}
-    task = game["levels"][level]
+    task_index = order[level]
+    task = game["levels"][task_index]
     mechanic = game["mechanic"]
     correct = False
     value = action.get("value")
@@ -196,7 +252,7 @@ def apply_action(game_id: str, state: dict, action: dict) -> tuple[dict, dict]:
             predators = max(0, min(10, habitat // 2 + 1 + (1 if herbivores >= 8 else 0)))
             populations = [herbivores, predators]
             correct = populations == task["target"]; value = {"food": food, "habitat": habitat, "populations": populations}
-        elif mechanic == "code-edit": correct = isinstance(value, str) and value.strip() == task["answer"]
+        elif mechanic == "code-edit": correct = code_checks.validate_code_edit(game_id, task_index, value, task["answer"])
         elif mechanic == "output-predict": correct = isinstance(value, str) and value.strip() == task["answer"]
         elif mechanic == "design-choice" or mechanic in {"er-diagram", "diagnose", "ui-debug"}:
             correct = isinstance(value, int) and not isinstance(value, bool) and value == task["answer"]
@@ -233,8 +289,8 @@ def apply_action(game_id: str, state: dict, action: dict) -> tuple[dict, dict]:
     if correct:
         state["score"] = int(state.get("score", 0)) + 100
         state["level"] = level + 1
-        state["complete"] = state["level"] >= len(game["levels"])
-        message = "Correct. " + task.get("explanation", "Your solution satisfies the task requirements.") + (" Level complete." if not state["complete"] else " You completed the game!")
+        state["complete"] = state["level"] >= len(order)
+        message = "Correct. " + (f"All {code_checks.suite_size(game_id, task_index)} private test cases passed. " if mechanic == "code-edit" else "") + task.get("explanation", "Your solution satisfies the task requirements.") + (" Level complete." if not state["complete"] else " You completed the game!")
     else:
         state["mistakes"] = int(state.get("mistakes", 0)) + 1
         message = "Not yet. " + task.get("hint", "Review the objective and try again.")

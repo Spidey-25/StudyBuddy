@@ -8,6 +8,12 @@ import unittest
 import uuid
 
 from backend.app import app, db_connection, ensure_schema
+from backend import game_catalog
+
+
+def submit_action(client, session_id, payload, action_id=None):
+    action_id = action_id or str(uuid.uuid4())
+    return client.post(f"/api/game-sessions/{session_id}/action", json={**payload,"client_action_id":action_id}), action_id
 
 
 @unittest.skipUnless(os.getenv("PLATFORM_MYSQL_INTEGRATION") == "1", "set PLATFORM_MYSQL_INTEGRATION=1 to use local MySQL")
@@ -17,6 +23,8 @@ class PlatformMySQLIntegrationTests(unittest.TestCase):
         app.config["TESTING"] = True
         self.client = app.test_client()
         self.session_id = None
+        self.session_ids = []
+        self.legacy_session_ids = []
         self.created_user_id = None
         self.additional_user_ids = []
         self.created_subject_id = None
@@ -27,8 +35,10 @@ class PlatformMySQLIntegrationTests(unittest.TestCase):
     def tearDown(self):
         connection = db_connection()
         cursor = connection.cursor()
-        if self.session_id:
-            cursor.execute("DELETE FROM platform_game_sessions WHERE id=%s", (self.session_id,))
+        for session_id in self.session_ids or ([self.session_id] if self.session_id else []):
+            cursor.execute("DELETE FROM platform_game_sessions WHERE id=%s", (session_id,))
+        for client_session_id in self.legacy_session_ids:
+            cursor.execute("DELETE FROM study_sessions WHERE client_session_id=%s", (client_session_id,))
         if self.created_game_id:
             cursor.execute("DELETE FROM games WHERE id=%s", (self.created_game_id,))
         if self.created_subject_id:
@@ -44,24 +54,35 @@ class PlatformMySQLIntegrationTests(unittest.TestCase):
         self.assertEqual(started.status_code, 201, started.get_json())
         self.session_id = started.get_json()["session_id"]
 
-        wrong = self.client.post(f"/api/game-sessions/{self.session_id}/action", json={"value": "wrong"})
+        wrong, _ = submit_action(self.client,self.session_id,{"value":"wrong"})
         self.assertEqual(wrong.status_code, 200)
         self.assertFalse(wrong.get_json()["feedback"]["correct"])
         self.assertEqual(wrong.get_json()["state"]["level"], 0)
 
-        for answer in ("return a + b;", "i < values.size()"):
-            result = self.client.post(f"/api/game-sessions/{self.session_id}/action", json={"value": answer})
+        for task_index in started.get_json()["state"]["level_order"]:
+            answer = game_catalog.GAMES["cpp-debugger"]["levels"][task_index]["answer"]
+            result, last_action_id = submit_action(self.client,self.session_id,{"value":answer})
             self.assertEqual(result.status_code, 200, result.get_json())
         self.assertTrue(result.get_json()["complete"])
-        self.assertEqual(result.get_json()["state"]["score"], 200)
+        self.assertEqual(result.get_json()["state"]["score"], 400)
 
         saved = self.client.get(f"/api/game-sessions/{self.session_id}")
         self.assertTrue(saved.get_json()["complete"])
         self.assertEqual(saved.get_json()["mistakes"], 1)
-        duplicate = self.client.post(f"/api/game-sessions/{self.session_id}/action", json={"value": "i < values.size()"})
-        self.assertEqual(duplicate.status_code, 409)
+        self.assertEqual(saved.get_json()["status"], "completed")
+        self.assertEqual(saved.get_json()["accuracy"], 80)
+        self.assertGreater(saved.get_json()["xp_awarded"], 0)
+        duplicate, _ = submit_action(self.client,self.session_id,{"value":"different replay payload"},last_action_id)
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertTrue(duplicate.get_json()["complete"])
+        completed_action, _ = submit_action(self.client,self.session_id,{"value":"return a + b;"})
+        self.assertEqual(completed_action.status_code, 409)
+        connection = db_connection(); cursor = connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM platform_game_attempts WHERE platform_session_id=%s", (self.session_id,))
+        self.assertEqual(cursor.fetchone()[0], 5)
+        cursor.close(); connection.close()
         listed = self.client.get("/api/game-sessions").get_json()["sessions"]
-        self.assertTrue(any(item["id"] == self.session_id for item in listed))
+        self.assertTrue(any(item["id"] == self.session_id and item["xp_awarded"] == saved.get_json()["xp_awarded"] for item in listed))
 
         other_user = app.test_client()
         login = other_user.post("/api/login", json={"email": "student@example.com", "password": "Student@123"})
@@ -73,6 +94,62 @@ class PlatformMySQLIntegrationTests(unittest.TestCase):
             self.assertEqual(other_user.post("/api/game-sessions", json={"game_id": "dsa-arena", "language": "C++"}).status_code, 403)
         finally:
             other_user.post("/api/me/subjects", json={"subject_ids": old_subjects})
+
+    def test_catalog_routes_to_each_game_and_lifecycle_status_is_terminal(self):
+        catalog = self.client.get("/api/game-catalog").get_json()["games"]
+        self.assertEqual({game["id"] for game in catalog}, set(game_catalog.GAMES))
+        self.assertEqual(self.client.post("/api/game-sessions", json={"game_id":"not-a-game"}).status_code, 404)
+        first_id = None
+        for card in catalog:
+            started = self.client.post("/api/game-sessions", json={"game_id":card["id"], "language":"C++" if card["subject"]=="DSA" else ""})
+            self.assertEqual(started.status_code, 201, (card["id"], started.get_json()))
+            data = started.get_json()
+            self.session_ids.append(data["session_id"])
+            self.assertEqual(data["game"]["id"], card["id"])
+            self.assertEqual(data["game"]["mechanic"], game_catalog.GAMES[card["id"]]["mechanic"])
+            if first_id is None:
+                first_id = data["session_id"]
+            ended = self.client.post(f"/api/game-sessions/{data['session_id']}/exit", json={"status":"exited"})
+            self.assertEqual(ended.status_code, 200, ended.get_json())
+            self.assertEqual(ended.get_json()["status"], "exited")
+            self.assertEqual(self.client.get(f"/api/game-sessions/{data['session_id']}").get_json()["status"], "exited")
+            rejected, _ = submit_action(self.client,data["session_id"],{"value":"anything"})
+            self.assertEqual(rejected.status_code, 409)
+        repeated = self.client.post(f"/api/game-sessions/{first_id}/exit", json={"status":"abandoned"})
+        self.assertEqual(repeated.get_json()["status"], "exited")
+
+    def test_starting_a_different_game_abandons_the_old_active_session(self):
+        first = self.client.post("/api/game-sessions", json={"game_id":"cpp-debugger"}).get_json()
+        self.session_ids.append(first["session_id"])
+        second = self.client.post("/api/game-sessions", json={"game_id":"python-logic"}).get_json()
+        self.session_ids.append(second["session_id"])
+        old = self.client.get(f"/api/game-sessions/{first['session_id']}").get_json()
+        self.assertEqual(old["status"], "abandoned")
+        rejected, _ = submit_action(self.client,first["session_id"],{"value":"return a + b;"})
+        self.assertEqual(rejected.status_code, 409)
+        self.assertEqual(self.client.get(f"/api/game-sessions/{second['session_id']}").get_json()["status"], "active")
+        self.client.post(f"/api/game-sessions/{second['session_id']}/exit", json={"status":"abandoned"})
+
+    def test_local_game_results_are_saved_once_with_abandonment_status(self):
+        client_session_id = f"legacy-{uuid.uuid4().hex}"
+        self.legacy_session_ids.append(client_session_id)
+        payload = {"client_session_id":client_session_id,"subject_code":"PYTHON","game_type":"quiz","status":"completed","accuracy":75,"seconds":28,"points":245,"xp_awarded":12,"attempts":[{"topic":"Boolean logic","correct":True,"response_seconds":4},{"topic":"Boolean logic","correct":False,"response_seconds":8}]}
+        created = self.client.post("/api/sessions", json=payload)
+        self.assertEqual(created.status_code, 201, created.get_json())
+        duplicate = self.client.post("/api/sessions", json=payload)
+        self.assertEqual(duplicate.status_code, 200, duplicate.get_json())
+        self.assertTrue(duplicate.get_json()["duplicate"])
+        connection = db_connection(); cursor = connection.cursor()
+        cursor.execute("SELECT id,status,accuracy,points,xp_awarded FROM study_sessions WHERE client_session_id=%s", (client_session_id,))
+        rows = cursor.fetchall()
+        self.assertEqual(len(rows), 1)
+        session_row = rows[0]
+        cursor.execute("SELECT COUNT(*) FROM question_attempts WHERE session_id=%s", (session_row[0],))
+        self.assertEqual(cursor.fetchone()[0], 2)
+        cursor.close(); connection.close()
+        self.assertEqual((session_row[1], float(session_row[2]), session_row[3], session_row[4]), ("completed", 75.0, 245, 12))
+        invalid = self.client.post("/api/sessions", json={**payload,"status":"active"})
+        self.assertEqual(invalid.status_code, 400)
 
     def test_registration_subjects_login_logout_and_teacher_permissions(self):
         email = f"e2e-{uuid.uuid4().hex[:12]}@example.test"
@@ -97,7 +174,7 @@ class PlatformMySQLIntegrationTests(unittest.TestCase):
         self.session_id = started.get_json()["session_id"]
         self.assertEqual(started.get_json()["state"]["language"], "Java")
         self.assertEqual(self.client.get(f"/api/game-sessions/{self.session_id}").get_json()["game"]["language"], "Java")
-        incorrect = self.client.post(f"/api/game-sessions/{self.session_id}/action", json={"value":[]})
+        incorrect, _ = submit_action(self.client,self.session_id,{"value":[]})
         self.assertFalse(incorrect.get_json()["feedback"]["correct"])
         analytics = self.client.get("/api/teacher/analytics")
         self.assertEqual(analytics.status_code, 200, analytics.get_json())

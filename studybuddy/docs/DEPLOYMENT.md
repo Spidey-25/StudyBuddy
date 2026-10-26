@@ -23,7 +23,7 @@ Change or disable these seed credentials before exposing the app beyond a local 
 
 ## Configuration and persistence
 
-See `.env.example`. The root launcher calls `ensure_database()` and `ensure_schema()` before Flask starts. SQL changes are additive; do not drop old tables to apply them. `backend/migrations/005_computing_course_catalog.sql` documents the new branch and technical-subject rows. The MySQL account needs `CREATE DATABASE` permission for automatic database creation.
+See `.env.example`. The root launcher calls `ensure_database()` and `ensure_schema()` before Flask starts. SQL changes are additive; do not drop old tables to apply them. Migrations `007_platform_session_lifecycle.sql`, `008_legacy_session_lifecycle.sql`, and `009_platform_action_idempotency.sql` document the additive session-status, deduplication and action-replay fields. Startup performs these schema upgrades idempotently. The MySQL account needs `CREATE DATABASE` permission for automatic database creation.
 
 ## Demo and security boundary
 

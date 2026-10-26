@@ -4,6 +4,7 @@ import unittest
 import uuid
 
 from backend.app import app, db_connection, ensure_schema
+from backend import game_catalog
 
 
 @unittest.skipUnless(os.getenv("PLATFORM_MYSQL_INTEGRATION") == "1", "set PLATFORM_MYSQL_INTEGRATION=1 to use local MySQL")
@@ -38,19 +39,18 @@ class StudentJourneyEndToEndTests(unittest.TestCase):
         self.session_id = started.get_json()["session_id"]
         self.assertEqual(started.get_json()["state"]["language"], "C++")
 
-        sequences = [
-            ["Set low and high", "Compute midpoint", "Compare midpoint with target", "Discard the half that cannot contain target"],
-            ["Enqueue the start node", "Dequeue the front node", "Visit each unvisited neighbour", "Enqueue those neighbours"],
-        ]
-        for sequence in sequences:
-            result = self.client.post(f"/api/game-sessions/{self.session_id}/action", json={"value":sequence})
+        for task_index in started.get_json()["state"]["level_order"]:
+            sequence = game_catalog.GAMES["dsa-arena"]["levels"][task_index]["steps"]
+            result = self.client.post(f"/api/game-sessions/{self.session_id}/action", json={"value":sequence,"client_action_id":str(uuid.uuid4())})
             self.assertEqual(result.status_code, 200, result.get_json())
             self.assertTrue(result.get_json()["feedback"]["correct"])
 
         saved = self.client.get(f"/api/game-sessions/{self.session_id}").get_json()
         self.assertTrue(saved["complete"])
         self.assertEqual(saved["game"]["language"], "C++")
-        self.assertEqual(saved["score"], 200)
+        self.assertEqual(saved["score"], 400)
+        self.assertEqual(saved["status"], "completed")
+        self.assertGreater(saved["xp_awarded"], 0)
         self.assertTrue(any(item["id"] == self.session_id for item in self.client.get("/api/game-sessions").get_json()["sessions"]))
         self.assertTrue(any(item["game_id"] == "dsa-arena" for item in self.client.get("/api/game-progress").get_json()["progress"]))
         self.assertEqual(self.client.post("/api/logout").status_code, 200)

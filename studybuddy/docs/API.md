@@ -22,8 +22,11 @@ All JSON routes are served from Flask and use the HTTP-only session cookie for a
 | GET | `/api/game-sessions` | List current user's recent sessions |
 | GET | `/api/game-sessions/<id>` | Read only the current user's session/result |
 | POST | `/api/game-sessions/<id>/action` | Validate and persist one game action |
+| POST | `/api/game-sessions/<id>/exit` | Close an active session as `exited` or `abandoned` |
 | GET | `/api/game-progress` | Current user's counts, completion, best score and last play |
 
-Platform game requests are authenticated and session IDs are owner-scoped. Flask computes score from validated actions; clients cannot submit a score or completion flag. Completed sessions reject more actions. DSA language is stored in the session JSON. The legacy `/api/sessions` route still accepts client-reported result summaries for the browser-local game modes; do not treat those summaries as tamper-proof.
+Platform game requests are authenticated and session IDs are owner-scoped. Each action must include a UUID `client_action_id`; replaying that identifier returns the original response without applying the action twice. Flask computes score, accuracy, completion status, duration, and XP from validated actions; clients cannot submit those results. A completed, exited, or abandoned session cannot accept new actions. Starting a new game closes any previous active session as abandoned. Refreshing the page keeps an active session resumable; leaving the game through SPA navigation closes it. DSA language is stored in the session JSON.
+
+Local game summaries sent to `/api/sessions` must include a stable `client_session_id`, a `status` (`completed` or `abandoned`), and the final metrics. The `(user_id, client_session_id)` key makes retries idempotent; attempts are stored only for the first accepted result. Legacy local-mode scores remain browser-reported and are not tamper-proof.
 
 Coding exercises are constrained prepared-response tasks. No arbitrary source code is compiled or run. Teacher content rows are stored and reviewable, but are not dynamically converted into platform-game mechanics.

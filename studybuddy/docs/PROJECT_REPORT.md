@@ -2,7 +2,7 @@
 
 ## Abstract
 
-StudyBuddy is a Flask and MySQL study application for college computing courses. It combines a preserved dashboard with quizzes, flashcards, timed challenges, progress history, XP and a separate server-validated technical-games platform. The active platform contains 32 deterministic activities across 16 computing subjects. This report describes the implementation and its limits; it does not claim measured learning gains.
+StudyBuddy is a Flask and MySQL study application for college computing courses. It combines a preserved dashboard with quizzes, flashcards, timed challenges, progress history, XP and a separate server-validated games platform. The active platform contains 32 games across 16 subjects; each game has at least four authored levels and Python Logic Builder has twelve. This report describes the implementation and its limits; it does not claim measured learning gains.
 
 ## Problem and users
 
@@ -12,27 +12,27 @@ Students need short, interactive practice that helps them retrieve concepts, deb
 
 - Email-based registration and login; unique email; hashed passwords; no email verification.
 - Student and teacher roles, computing branches/courses, branch-to-subject relationships, and editable student subject choices.
-- Two distinct platform activities for each of 16 enabled computing subjects, with hints, feedback, per-level scoring, retry and persisted sessions.
+- Two platform activities for each of 16 enabled subjects, with unique authored content, progressive difficulty, hints, feedback, per-level scoring, retry and persisted sessions.
 - DSA C++/Java choice saved with the student's platform session.
-- Server-side validation and ownership checks for platform game actions.
+- Server-side validation, session ownership, terminal lifecycle states and idempotent action/result writes.
 - Teacher-only subject/content endpoints and analytics for session volume, completion, weak topics, and question-quality aggregates.
 - Existing frontend design and local study experience preserved.
 
 ## Design and data model
 
-Flask serves the single-page frontend and JSON API. MySQL stores accounts, branches, subjects, user-subject mappings, teacher content, legacy session summaries, question attempts, platform-game state and per-level platform attempts. The ER diagram and request flow are in `ARCHITECTURE.md`. Schema initialization is additive and startup creates the configured database and missing tables when the MySQL account has permission.
+Flask serves the single-page frontend and JSON API. MySQL stores accounts, branches, subjects, user-subject mappings, teacher content, idempotent legacy session summaries, question attempts, platform-game state, lifecycle status, per-action responses and one-time XP rewards. The ER diagram and request flow are in `ARCHITECTURE.md`. Schema initialization is additive and startup creates the configured database and missing tables when the MySQL account has permission.
 
 ## Games and learning objectives
 
-Each platform level has a task-specific objective, prompt and hint. The game catalog includes code repair and output tracing, OOP decisions, logic construction, algorithm ordering, stack/queue tracing, SQL construction, ER cardinality, scheduling, memory allocation, packet routing, troubleshooting, responsive UI, testing strategy, inference, metrics, incident response, cloud design, embedded interrupts and IoT topology. Answers are kept in server-side definitions. A correct level awards 100 points; incorrect actions record a mistake and do not advance. Explanatory feedback is returned after a correct answer.
+Each platform level has a task-specific objective, prompt, difficulty and hint. New runs randomize content within the difficulty progression and avoid opening with the prior run's final question. The catalog includes code repair and output tracing, OOP decisions, logic construction, algorithm ordering, stack/queue tracing, SQL construction, ER cardinality, scheduling, memory allocation, packet routing, troubleshooting, responsive UI, testing strategy, inference, metrics, incident response, cloud design, embedded interrupts and IoT topology. Answers are kept in server-side definitions. A correct level awards 100 points; completion writes accuracy, duration and XP once. Incorrect actions record a mistake and do not advance. Explanatory feedback is returned after a correct answer.
 
 ## Safety and limitations
 
-Prepared code challenges compare responses against fixed expected answers and sample expectations. They do not compile or execute learner-supplied code, do not expose hidden runtime tests, and do not enforce real compiler CPU/memory limits. Teacher-created database game records are saved and reviewable but are not dynamically wired into the deterministic game engine. The legacy local-game session API accepts browser-reported summaries and is not authoritative in the same way as the platform game API. Educational simulations are small deterministic examples rather than full systems models.
+Platform code-edit challenges use private deterministic fixtures and constrained checks for authored exercise patterns. They do not compile or execute learner-supplied source and do not provide a general compiler, runtime limits, or arbitrary hidden-test support. Teacher-created database game records are saved and reviewable but are not dynamically wired into the deterministic game engine. The legacy local-game session API accepts browser-reported summaries and is not authoritative in the same way as the platform game API. Educational simulations are small deterministic examples rather than full systems models.
 
 ## Testing and evaluation
 
-Automated unit tests exercise all catalog levels and mechanic renderers. The opt-in MySQL integration test checks persistence, scoring, completion, ownership and authorization. Browser UI flows, physical-device behavior and assistive-technology behavior remain manual follow-up checks. Results of the current automated suite are summarized in the project README only after the suite is run.
+Automated unit tests exercise all catalog levels, distinct routes, difficulty variety, answer redaction, navigation lifecycle contracts and mechanic renderers. Opt-in MySQL integration tests check every catalog start route, persistence, completion, exit/abandonment, action replay, exact-once rewards, ownership and authorization. A local browser demonstration was separately inspected; physical-device, screen-reader and broad browser matrix testing remain follow-up checks. Report the current run's test results separately rather than treating this report as a test log.
 
 The evaluation protocol in `EVALUATION_STUDY.md` proposes a small pre-test/post-test and usability study. No participant data has been collected; therefore, no learning-improvement claim is made.
 

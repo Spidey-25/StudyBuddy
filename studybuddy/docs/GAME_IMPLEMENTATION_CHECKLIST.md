@@ -21,7 +21,7 @@
 
 ## Remaining limitations
 
-- [ ] User code is not compiled or executed; no hidden runtime tests, true partial execution scoring or resource-limited compiler service.
+- [x] User code is not compiled or executed; code-edit exercises use private deterministic fixture checks. A general compiler, runtime, true partial execution scoring and resource-limited runner remain unavailable.
 - [ ] Teacher-added game rows are saved and reviewable but do not dynamically become playable platform mechanics.
 - [ ] Legacy `/api/sessions` trusts the browser-reported summary for local game modes.
 - [ ] Real browser E2E across all routes and games, real device/responsive QA, and screen-reader audit remain to be run.
