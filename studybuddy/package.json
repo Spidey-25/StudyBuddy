@@ -1,3 +1,0 @@
-{ "name": "studybuddy", "version": "0.1.0", "private": true,
-  "scripts": { "dev": "npx -y serve .", "start": "npx -y serve .", "test": "node tests/smoke.test.js" },
-  "devDependencies": { "jsdom": "^26.0.0" } }
