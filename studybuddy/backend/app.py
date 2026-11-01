@@ -50,16 +50,28 @@ BRANCHES = {
 }
 SUBJECT_CODE_ALIASES = {"Python": "PYTHON", "Web": "WEB", "C++": "CPP", "DSA-C++": "DSA", "DSA-Java": "DSA"}
 
-SUBJECTS = {
-    "cse": [("C", "C Programming"), ("CPP", "C++"), ("JAVA", "Java"), ("PYTHON", "Python"), ("DSA", "Data Structures and Algorithms"), ("DBMS", "Database Management Systems"), ("OS", "Operating Systems"), ("CN", "Computer Networks"), ("WEB", "Web Development"), ("SE", "Software Engineering"), ("AI", "Artificial Intelligence"), ("ML", "Machine Learning"), ("CYBER", "Cybersecurity"), ("CLOUD", "Cloud Computing"), ("EMBEDDED", "Embedded Systems"), ("IOT", "Internet of Things")],
-    "it": [("C", "C Programming"), ("CPP", "C++"), ("JAVA", "Java"), ("PYTHON", "Python"), ("DSA", "Data Structures and Algorithms"), ("DBMS", "Database Management Systems"), ("OS", "Operating Systems"), ("CN", "Computer Networks"), ("WEB", "Web Development"), ("SE", "Software Engineering"), ("CYBER", "Cybersecurity"), ("CLOUD", "Cloud Computing")],
-    "ce": [("C", "C Programming"), ("CPP", "C++"), ("JAVA", "Java"), ("PYTHON", "Python"), ("DSA", "Data Structures and Algorithms"), ("DBMS", "Database Management Systems"), ("OS", "Operating Systems"), ("CN", "Computer Networks"), ("EMBEDDED", "Embedded Systems"), ("IOT", "Internet of Things")],
-    "aiml": [("JAVA", "Java"), ("PYTHON", "Python"), ("DSA", "Data Structures and Algorithms"), ("DBMS", "Database Management Systems"), ("OS", "Operating Systems"), ("CN", "Computer Networks"), ("AI", "Artificial Intelligence"), ("ML", "Machine Learning"), ("CLOUD", "Cloud Computing")],
-    "ds": [("JAVA", "Java"), ("PYTHON", "Python"), ("DSA", "Data Structures and Algorithms"), ("DBMS", "Database Management Systems"), ("OS", "Operating Systems"), ("CN", "Computer Networks"), ("ML", "Machine Learning"), ("AI", "Artificial Intelligence"), ("CLOUD", "Cloud Computing")],
-    "cyber": [("C", "C Programming"), ("CPP", "C++"), ("JAVA", "Java"), ("PYTHON", "Python"), ("DSA", "Data Structures and Algorithms"), ("DBMS", "Database Management Systems"), ("OS", "Operating Systems"), ("CN", "Computer Networks"), ("WEB", "Web Development"), ("CYBER", "Cybersecurity"), ("CLOUD", "Cloud Computing")],
+SUBJECT_CATALOG = {
+    "C": "C Programming", "CPP": "C++", "JAVA": "Java", "PYTHON": "Python",
+    "DSA": "Data Structures and Algorithms", "DBMS": "Database Management Systems",
+    "OS": "Operating Systems", "CN": "Computer Networks", "WEB": "Web Development",
+    "SE": "Software Engineering", "AI": "Artificial Intelligence", "ML": "Machine Learning",
+    "CYBER": "Cybersecurity", "CLOUD": "Cloud Computing",
+    "EMBEDDED": "Embedded Systems", "IOT": "Internet of Things",
+}
+BRANCH_SUBJECT_CODES = {
+    "cse": tuple(SUBJECT_CATALOG),
+    "it": ("C", "CPP", "JAVA", "PYTHON", "DSA", "DBMS", "OS", "CN", "WEB", "SE", "CYBER", "CLOUD"),
+    "ce": ("C", "CPP", "JAVA", "PYTHON", "DSA", "DBMS", "OS", "CN", "EMBEDDED", "IOT"),
+    "aiml": ("JAVA", "PYTHON", "DSA", "DBMS", "OS", "CN", "AI", "ML", "CLOUD"),
+    "ds": ("JAVA", "PYTHON", "DSA", "DBMS", "OS", "CN", "ML", "AI", "CLOUD"),
+    "cyber": ("C", "CPP", "JAVA", "PYTHON", "DSA", "DBMS", "OS", "CN", "WEB", "CYBER", "CLOUD"),
 }
 # Keep existing account branch codes working without rewriting user records.
-SUBJECTS.update({"software": SUBJECTS["cse"], "information": SUBJECTS["it"], "electronics": SUBJECTS["ce"], "ai": SUBJECTS["aiml"], "data": SUBJECTS["ds"]})
+BRANCH_ALIASES = {"software": "cse", "information": "it", "electronics": "ce", "ai": "aiml", "data": "ds"}
+SUBJECTS = {
+    branch: [(code, SUBJECT_CATALOG[code]) for code in BRANCH_SUBJECT_CODES[canonical]]
+    for branch, canonical in {**{code: code for code in BRANCHES}, **BRANCH_ALIASES}.items()
+}
 SUPPORTED_SUBJECT_CODES = {code for branch_subjects in SUBJECTS.values() for code, _ in branch_subjects}
 
 
@@ -72,15 +84,22 @@ def ensure_database():
     connection.close()
 
 
+def ensure_index(cursor, table, index_name, definition):
+    cursor.execute(f"SHOW INDEX FROM `{table}` WHERE Key_name=%s", (index_name,))
+    if not cursor.fetchall():
+        cursor.execute(f"ALTER TABLE `{table}` ADD INDEX `{index_name}` {definition}")
+
+
 def ensure_schema():
     connection = db_connection()
     cursor = connection.cursor()
     statements = [
         """CREATE TABLE IF NOT EXISTS branches (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, code VARCHAR(40) NOT NULL UNIQUE, name VARCHAR(120) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-        """CREATE TABLE IF NOT EXISTS users (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, email VARCHAR(190) NOT NULL UNIQUE, username VARCHAR(40) NOT NULL, password_hash VARCHAR(255) NOT NULL, display_name VARCHAR(40) NOT NULL, role ENUM('student','teacher') NOT NULL DEFAULT 'student', branch_id INT UNSIGNED NULL, course VARCHAR(120) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+        """CREATE TABLE IF NOT EXISTS users (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, email VARCHAR(190) NOT NULL UNIQUE, username VARCHAR(40) NOT NULL, password_hash VARCHAR(255) NOT NULL, display_name VARCHAR(40) NOT NULL, role ENUM('student','teacher') NOT NULL DEFAULT 'student', branch_id INT UNSIGNED NULL, course VARCHAR(120) NULL, semester TINYINT UNSIGNED NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         """CREATE TABLE IF NOT EXISTS subjects (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, code VARCHAR(60) NOT NULL, name VARCHAR(160) NOT NULL, branch_id INT UNSIGNED NULL, created_by INT UNSIGNED NULL, UNIQUE KEY uq_subject_branch (code, branch_id), CONSTRAINT fk_subject_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, CONSTRAINT fk_subject_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-        """CREATE TABLE IF NOT EXISTS user_subjects (user_id INT UNSIGNED NOT NULL, subject_id INT UNSIGNED NOT NULL, PRIMARY KEY (user_id, subject_id), CONSTRAINT fk_us_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, CONSTRAINT fk_us_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-        """CREATE TABLE IF NOT EXISTS games (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, subject_id INT UNSIGNED NOT NULL, title VARCHAR(160) NOT NULL, game_type VARCHAR(40) NOT NULL, content_json JSON NOT NULL, UNIQUE KEY uq_game_subject_title (subject_id, title), CONSTRAINT fk_game_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+        """CREATE TABLE IF NOT EXISTS branch_subjects (branch_id INT UNSIGNED NOT NULL, subject_id INT UNSIGNED NOT NULL, PRIMARY KEY (branch_id, subject_id), INDEX ix_branch_subject_subject (subject_id), CONSTRAINT fk_bs_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, CONSTRAINT fk_bs_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+        """CREATE TABLE IF NOT EXISTS user_subjects (user_id INT UNSIGNED NOT NULL, subject_id INT UNSIGNED NOT NULL, PRIMARY KEY (user_id, subject_id), INDEX ix_user_subject_subject (subject_id), CONSTRAINT fk_us_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, CONSTRAINT fk_us_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+        """CREATE TABLE IF NOT EXISTS games (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, subject_id INT UNSIGNED NOT NULL, title VARCHAR(160) NOT NULL, game_type VARCHAR(40) NOT NULL, content_json JSON NOT NULL, UNIQUE KEY uq_game_subject_title (subject_id, title), INDEX ix_games_subject (subject_id), CONSTRAINT fk_game_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         """CREATE TABLE IF NOT EXISTS study_sessions (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL, client_session_id VARCHAR(64) NULL, subject_code VARCHAR(60) NOT NULL, game_type VARCHAR(40) NOT NULL, status VARCHAR(16) NOT NULL DEFAULT 'completed', accuracy DECIMAL(5,2) NOT NULL DEFAULT 0, seconds INT UNSIGNED NOT NULL DEFAULT 0, points INT UNSIGNED NOT NULL DEFAULT 0, xp_awarded INT UNSIGNED NOT NULL DEFAULT 0, completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_study_client_session (user_id,client_session_id), CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         """CREATE TABLE IF NOT EXISTS question_attempts (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, session_id BIGINT UNSIGNED NOT NULL, user_id INT UNSIGNED NOT NULL, subject_code VARCHAR(60) NOT NULL, topic VARCHAR(160) NOT NULL, correct BOOLEAN NOT NULL, response_seconds INT UNSIGNED NOT NULL DEFAULT 0, CONSTRAINT fk_attempt_session FOREIGN KEY (session_id) REFERENCES study_sessions(id) ON DELETE CASCADE, CONSTRAINT fk_attempt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         """CREATE TABLE IF NOT EXISTS platform_game_sessions (id CHAR(36) PRIMARY KEY, user_id INT UNSIGNED NOT NULL, game_id VARCHAR(80) NOT NULL, subject_code VARCHAR(60) NOT NULL, state_json JSON NOT NULL, score INT UNSIGNED NOT NULL DEFAULT 0, accuracy DECIMAL(5,2) NOT NULL DEFAULT 0, mistakes INT UNSIGNED NOT NULL DEFAULT 0, xp_awarded INT UNSIGNED NOT NULL DEFAULT 0, status VARCHAR(16) NOT NULL DEFAULT 'active', started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, ended_at TIMESTAMP NULL, completed_at TIMESTAMP NULL, seconds INT UNSIGNED NOT NULL DEFAULT 0, INDEX ix_platform_user_subject (user_id, subject_code), INDEX ix_platform_status_user (user_id, status), INDEX ix_platform_game (game_id), CONSTRAINT fk_platform_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
@@ -88,6 +107,10 @@ def ensure_schema():
     ]
     for statement in statements:
         cursor.execute(statement)
+    cursor.execute("SHOW COLUMNS FROM users")
+    user_columns = {row[0] for row in cursor.fetchall()}
+    if "semester" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN semester TINYINT UNSIGNED NULL")
     # Older installations created this table before lifecycle and reward data
     # was tracked. Apply additive, idempotent upgrades without dropping rows.
     cursor.execute("SHOW COLUMNS FROM platform_game_sessions")
@@ -101,10 +124,7 @@ def ensure_schema():
     for column, definition in additions.items():
         if column not in platform_columns:
             cursor.execute(f"ALTER TABLE platform_game_sessions ADD COLUMN {column} {definition}")
-    cursor.execute("SHOW INDEX FROM platform_game_sessions")
-    platform_indexes = {row[2] for row in cursor.fetchall()}
-    if "ix_platform_status_user" not in platform_indexes:
-        cursor.execute("ALTER TABLE platform_game_sessions ADD INDEX ix_platform_status_user (user_id, status)")
+    ensure_index(cursor, "platform_game_sessions", "ix_platform_status_user", "(user_id, status)")
     cursor.execute("UPDATE platform_game_sessions SET status='completed', ended_at=COALESCE(ended_at, completed_at) WHERE completed_at IS NOT NULL AND status<>'completed'")
     cursor.execute("UPDATE platform_game_sessions SET ended_at=COALESCE(ended_at, started_at) WHERE status IN ('abandoned','exited') AND ended_at IS NULL")
     cursor.execute("SHOW COLUMNS FROM study_sessions")
@@ -116,29 +136,67 @@ def ensure_schema():
     }.items():
         if column not in legacy_columns:
             cursor.execute(f"ALTER TABLE study_sessions ADD COLUMN {column} {definition}")
-    cursor.execute("SHOW INDEX FROM study_sessions")
-    legacy_indexes = {row[2] for row in cursor.fetchall()}
-    if "uq_study_client_session" not in legacy_indexes:
+    cursor.execute("SHOW INDEX FROM study_sessions WHERE Key_name=%s", ("uq_study_client_session",))
+    if not cursor.fetchall():
         cursor.execute("ALTER TABLE study_sessions ADD UNIQUE INDEX uq_study_client_session (user_id,client_session_id)")
     cursor.execute("SHOW COLUMNS FROM platform_game_attempts")
     attempt_columns={row[0] for row in cursor.fetchall()}
     for column,definition in {"client_action_id":"CHAR(36) NULL","response_json":"JSON NULL"}.items():
         if column not in attempt_columns:
             cursor.execute(f"ALTER TABLE platform_game_attempts ADD COLUMN {column} {definition}")
-    cursor.execute("SHOW INDEX FROM platform_game_attempts")
-    attempt_indexes={row[2] for row in cursor.fetchall()}
-    if "uq_platform_action_id" not in attempt_indexes:
+    cursor.execute("SHOW INDEX FROM platform_game_attempts WHERE Key_name=%s", ("uq_platform_action_id",))
+    if not cursor.fetchall():
         cursor.execute("ALTER TABLE platform_game_attempts ADD UNIQUE INDEX uq_platform_action_id (platform_session_id,client_action_id)")
-    for code, name in BRANCHES.items():
-        cursor.execute("INSERT IGNORE INTO branches (code, name) VALUES (%s, %s)", (code, name))
+    ensure_index(cursor, "subjects", "ix_subjects_branch", "(branch_id)")
+    ensure_index(cursor, "user_subjects", "ix_user_subject_subject", "(subject_id)")
+    ensure_index(cursor, "games", "ix_games_subject", "(subject_id)")
+    cursor.executemany(
+        "INSERT IGNORE INTO branches (code, name) VALUES (%s, %s)",
+        list(BRANCHES.items()),
+    )
     cursor.execute("SELECT id, code FROM branches")
     branch_ids = {code: branch_id for branch_id, code in cursor.fetchall()}
-    for branch_code, subjects in SUBJECTS.items():
-        if branch_code not in branch_ids: continue
-        for code, name in subjects:
-            cursor.execute("INSERT IGNORE INTO subjects (code, name, branch_id) VALUES (%s, %s, %s)", (code, name, branch_ids[branch_code]))
-            cursor.execute("SELECT id FROM subjects WHERE code=%s AND branch_id=%s", (code, branch_ids[branch_code]))
-            cursor.fetchone()
+    subject_rows = [(code, name, None) for code, name in SUBJECT_CATALOG.items()]
+    cursor.executemany(
+        "INSERT IGNORE INTO subjects (code, name, branch_id) VALUES (%s, %s, %s)",
+        subject_rows,
+    )
+    cursor.execute("SELECT id, code FROM subjects WHERE code IN (" + ",".join(["%s"] * len(SUBJECT_CATALOG)) + ") AND branch_id IS NULL", tuple(SUBJECT_CATALOG))
+    canonical_ids = {code: subject_id for subject_id, code in cursor.fetchall()}
+    branch_subject_rows = [
+        (branch_ids[branch_code], canonical_ids[code])
+        for branch_code, subjects in SUBJECTS.items()
+        if branch_code in branch_ids
+        for code, _ in subjects
+        if code in canonical_ids
+    ]
+    cursor.executemany(
+        "INSERT IGNORE INTO branch_subjects (branch_id, subject_id) VALUES (%s, %s)",
+        branch_subject_rows,
+    )
+    cursor.execute(
+        """INSERT IGNORE INTO user_subjects (user_id, subject_id)
+        SELECT us.user_id, canonical.id
+        FROM user_subjects us
+        JOIN subjects legacy ON legacy.id=us.subject_id AND legacy.branch_id IS NOT NULL
+        JOIN subjects canonical ON canonical.code=legacy.code AND canonical.branch_id IS NULL
+        WHERE legacy.code IN (""" + ",".join(["%s"] * len(SUBJECT_CATALOG)) + ")",
+        tuple(SUBJECT_CATALOG),
+    )
+    cursor.execute(
+        """DELETE us FROM user_subjects us
+        JOIN subjects legacy ON legacy.id=us.subject_id
+        WHERE legacy.branch_id IS NOT NULL
+          AND legacy.code IN (""" + ",".join(["%s"] * len(SUBJECT_CATALOG)) + """)""",
+        tuple(SUBJECT_CATALOG),
+    )
+    cursor.execute(
+        """DELETE legacy FROM subjects legacy
+        WHERE legacy.branch_id IS NOT NULL
+          AND legacy.code IN (""" + ",".join(["%s"] * len(SUBJECT_CATALOG)) + """)
+          AND NOT EXISTS (SELECT 1 FROM games g WHERE g.subject_id=legacy.id)""",
+        tuple(SUBJECT_CATALOG),
+    )
     connection.commit()
     seed_test_users(cursor, branch_ids)
     connection.commit()
@@ -151,14 +209,32 @@ def seed_test_users(cursor, branch_ids):
         ("student@example.com", "Test Student", "student", branch_ids["cse"], BRANCHES["cse"], "Student@123"),
         ("teacher@example.com", "Test Teacher", "teacher", None, None, "Teacher@123"),
     ]
-    for email, display_name, role, branch_id, course, password in users:
-        cursor.execute("SELECT id FROM users WHERE email=%s", (email,))
-        if cursor.fetchone():
-            continue
-        cursor.execute("INSERT INTO users (email, username, password_hash, display_name, role, branch_id, course) VALUES (%s,%s,%s,%s,%s,%s,%s)", (email, email.split("@")[0], generate_password_hash(password), display_name, role, branch_id, course))
-        if branch_id:
-            user_id = cursor.lastrowid
-            cursor.execute("INSERT IGNORE INTO user_subjects SELECT %s, id FROM subjects WHERE branch_id=%s", (user_id, branch_id))
+    emails = [user[0] for user in users]
+    cursor.execute(
+        "SELECT id, email FROM users WHERE email IN (%s, %s)",
+        tuple(emails),
+    )
+    existing = {email: user_id for user_id, email in cursor.fetchall()}
+    cursor.executemany(
+        """INSERT IGNORE INTO users
+        (email, username, password_hash, display_name, role, branch_id, course)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        [
+            (email, email.split("@")[0], generate_password_hash(password), display_name, role, branch_id, course)
+            for email, display_name, role, branch_id, course, password in users
+        ],
+    )
+    if "student@example.com" not in existing:
+        cursor.execute("SELECT id FROM users WHERE email=%s", ("student@example.com",))
+        student = cursor.fetchone()
+    else:
+        student = None
+    if student:
+        cursor.execute(
+            """INSERT IGNORE INTO user_subjects (user_id, subject_id)
+            SELECT %s, bs.subject_id FROM branch_subjects bs WHERE bs.branch_id=%s""",
+            (student[0], branch_ids["cse"]),
+        )
 
 
 def current_user_id():
@@ -166,33 +242,41 @@ def current_user_id():
 
 
 def subject_rows(cursor, user_id=None, branch_id=None):
-    query = "SELECT s.id, s.code, s.name, b.code, b.name FROM subjects s LEFT JOIN branches b ON b.id=s.branch_id"
+    query = """SELECT DISTINCT s.id, s.code, s.name, b.code, b.name
+        FROM subjects s
+        LEFT JOIN branches b ON b.id=s.branch_id"""
     params = []
     supported = sorted(SUPPORTED_SUBJECT_CODES)
     conditions = ["(s.code IN (" + ",".join(["%s"] * len(supported)) + ") OR s.created_by IS NOT NULL)"]
+    availability_branch = branch_id
     if user_id:
-        cursor.execute("SELECT branch_id FROM users WHERE id=%s", (user_id,)); user_branch = cursor.fetchone()
+        cursor.execute("SELECT branch_id FROM users WHERE id=%s", (user_id,))
+        user_branch = cursor.fetchone()
+        availability_branch = user_branch[0] if user_branch and user_branch[0] is not None else branch_id
         query += " JOIN user_subjects us ON us.subject_id=s.id"
         conditions.append("us.user_id=%s")
+    if availability_branch is not None:
+        query += " LEFT JOIN branch_subjects bs ON bs.subject_id=s.id AND bs.branch_id=%s"
+        conditions.append("(bs.subject_id IS NOT NULL OR (s.created_by IS NOT NULL AND s.branch_id=%s))")
+        params.extend([availability_branch, *supported])
+    else:
+        params.extend(supported)
+    if user_id:
         params.append(user_id)
-        if user_branch and user_branch[0] is not None:
-            conditions.append("(s.branch_id=%s OR s.branch_id IS NULL)")
-            params.append(user_branch[0])
-    if branch_id is not None:
-        conditions.append("(s.branch_id=%s OR s.branch_id IS NULL)")
-        params.append(branch_id)
+    if availability_branch is not None:
+        params.append(availability_branch)
+    conditions.append("(s.created_by IS NOT NULL OR s.id=(SELECT MIN(canonical.id) FROM subjects canonical WHERE canonical.code=s.code AND canonical.branch_id IS NULL))")
     query += " WHERE " + " AND ".join(conditions)
-    params = [*supported, *params]
     query += " ORDER BY s.name"
     cursor.execute(query, params)
     return [{"id": r[0], "code": r[1], "name": r[2], "branch_code": r[3], "branch_name": r[4]} for r in cursor.fetchall()]
 
 
 def payload(cursor, row):
-    user_id, email, username, display_name, role, branch_id, course = row
+    user_id, email, username, display_name, role, branch_id, course, semester = row
     cursor.execute("SELECT code, name FROM branches WHERE id=%s", (branch_id,))
     branch = cursor.fetchone()
-    return {"id": user_id, "email": email, "username": username, "display_name": display_name, "role": role, "branch_id": branch_id, "branch": branch[0] if branch else None, "branch_name": branch[1] if branch else None, "course": course, "subjects": subject_rows(cursor, user_id=user_id)}
+    return {"id": user_id, "email": email, "username": username, "display_name": display_name, "role": role, "branch_id": branch_id, "branch": branch[0] if branch else None, "branch_name": branch[1] if branch else None, "course": course, "semester": semester, "subjects": subject_rows(cursor, user_id=user_id)}
 
 
 @app.get("/api/health")
@@ -231,22 +315,22 @@ def register():
         cursor.execute("INSERT INTO users (email, username, password_hash, display_name, role, branch_id, course) VALUES (%s,%s,%s,%s,%s,%s,%s)", (email, email.split("@")[0], generate_password_hash(password), display_name, role, branch_id, BRANCHES.get(branch)))
         user_id = cursor.lastrowid
         if branch_id:
-            cursor.execute("INSERT IGNORE INTO user_subjects SELECT %s, id FROM subjects WHERE branch_id=%s", (user_id, branch_id))
+            cursor.execute("INSERT IGNORE INTO user_subjects SELECT %s, subject_id FROM branch_subjects WHERE branch_id=%s", (user_id, branch_id))
         connection.commit()
     except mysql.connector.IntegrityError: connection.rollback(); return jsonify({"error": "That email is already registered."}), 409
     finally: cursor.close(); connection.close()
     session.permanent = True; session["user_id"] = user_id
-    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course FROM users WHERE id=%s", (user_id,)); result = payload(cursor, cursor.fetchone()); cursor.close(); connection.close()
+    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course,semester FROM users WHERE id=%s", (user_id,)); result = payload(cursor, cursor.fetchone()); cursor.close(); connection.close()
     return jsonify({"user": result}), 201
 
 
 @app.post("/api/login")
 def login():
     data = request.get_json(silent=True) or {}; email = str(data.get("email", "")).strip().lower(); password = str(data.get("password", ""))
-    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course,password_hash FROM users WHERE email=%s", (email,)); row = cursor.fetchone(); cursor.close(); connection.close()
-    if not row or not check_password_hash(row[7], password): return jsonify({"error": "Invalid email or password."}), 401
+    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course,semester,password_hash FROM users WHERE email=%s", (email,)); row = cursor.fetchone(); cursor.close(); connection.close()
+    if not row or not check_password_hash(row[8], password): return jsonify({"error": "Invalid email or password."}), 401
     session.permanent = True; session["user_id"] = row[0]
-    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course FROM users WHERE id=%s", (row[0],)); result = payload(cursor, cursor.fetchone()); cursor.close(); connection.close()
+    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course,semester FROM users WHERE id=%s", (row[0],)); result = payload(cursor, cursor.fetchone()); cursor.close(); connection.close()
     return jsonify({"user": result})
 
 
@@ -257,7 +341,7 @@ def logout(): session.clear(); return jsonify({"ok": True})
 @app.get("/api/me")
 def me():
     if not current_user_id(): return jsonify({"user": None})
-    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course FROM users WHERE id=%s", (current_user_id(),)); row = cursor.fetchone()
+    connection = db_connection(); cursor = connection.cursor(); cursor.execute("SELECT id,email,username,display_name,role,branch_id,course,semester FROM users WHERE id=%s", (current_user_id(),)); row = cursor.fetchone()
     if not row: session.clear(); cursor.close(); connection.close(); return jsonify({"user": None})
     result = payload(cursor, row); cursor.close(); connection.close(); return jsonify({"user": result})
 
@@ -470,17 +554,46 @@ def update_subjects():
     for subject_id in ids:
         if isinstance(subject_id, str) and not subject_id.isdigit():
             code = SUBJECT_CODE_ALIASES.get(subject_id, subject_id).upper()
-            cursor.execute("SELECT id FROM subjects WHERE code=%s AND (branch_id=%s OR branch_id IS NULL) ORDER BY branch_id IS NULL LIMIT 1", (code, user_branch)); found = cursor.fetchone()
+            cursor.execute("SELECT s.id FROM subjects s LEFT JOIN branch_subjects bs ON bs.subject_id=s.id AND bs.branch_id=%s WHERE s.code=%s AND (bs.subject_id IS NOT NULL OR (s.created_by IS NOT NULL AND s.branch_id IS NULL)) ORDER BY s.id LIMIT 1", (user_branch, code)); found = cursor.fetchone()
             if not found: connection.rollback(); cursor.close(); connection.close(); return jsonify({"error": f"Subject {code} is not available for your branch."}), 400
             subject_id = found[0]
         try: subject_id = int(subject_id)
         except (TypeError, ValueError): connection.rollback(); cursor.close(); connection.close(); return jsonify({"error": "Subject IDs must be valid integers."}), 400
-        cursor.execute("SELECT id FROM subjects WHERE id=%s AND (branch_id=%s OR branch_id IS NULL) AND (code IN (" + ",".join(["%s"]*len(SUPPORTED_SUBJECT_CODES)) + ") OR created_by IS NOT NULL)", (subject_id, user_branch, *sorted(SUPPORTED_SUBJECT_CODES)))
+        cursor.execute("SELECT s.id FROM subjects s LEFT JOIN branch_subjects bs ON bs.subject_id=s.id AND bs.branch_id=%s WHERE s.id=%s AND (bs.subject_id IS NOT NULL OR (s.created_by IS NOT NULL AND s.branch_id IS NULL)) AND (s.code IN (" + ",".join(["%s"]*len(SUPPORTED_SUBJECT_CODES)) + ") OR s.created_by IS NOT NULL)", (user_branch, subject_id, *sorted(SUPPORTED_SUBJECT_CODES)))
         if not cursor.fetchone(): connection.rollback(); cursor.close(); connection.close(); return jsonify({"error": "A selected subject is not available for your branch."}), 400
         chosen.append(subject_id)
     cursor.execute("DELETE FROM user_subjects WHERE user_id=%s", (user_id,))
     for subject_id in set(chosen): cursor.execute("INSERT INTO user_subjects (user_id, subject_id) VALUES (%s,%s)", (user_id, subject_id))
     connection.commit(); cursor.close(); connection.close(); return jsonify({"ok": True})
+
+
+@app.post("/api/me/profile")
+def update_profile():
+    user_id = current_user_id()
+    if not user_id:
+        return jsonify({"error": "Login required."}), 401
+    data = request.get_json(silent=True) or {}
+    display_name = str(data.get("display_name", "")).strip()
+    try:
+        semester = int(data.get("semester"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Choose a valid semester."}), 400
+    if not display_name or len(display_name) > 40:
+        return jsonify({"error": "Display name is required."}), 400
+    if not 1 <= semester <= 8:
+        return jsonify({"error": "Choose a valid semester."}), 400
+    connection = db_connection()
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "UPDATE users SET display_name=%s, semester=%s WHERE id=%s",
+            (display_name, semester, user_id),
+        )
+        connection.commit()
+    finally:
+        cursor.close()
+        connection.close()
+    return jsonify({"ok": True})
 
 
 @app.post("/api/subjects")

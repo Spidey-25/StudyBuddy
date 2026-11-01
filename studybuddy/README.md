@@ -39,8 +39,7 @@ The existing local study app retains its quiz, flashcard, timed challenge, code 
 - `frontend/index.html`: existing SPA, dashboard and local games.
 - `frontend/games.js`: dedicated renderer for each platform mechanic.
 - `tests/`: unit, renderer, API contract and opt-in MySQL integration tests.
-- `docs/`: API, architecture/ER diagrams, deployment, testing and project report.
-- `docs/GAME_CATALOG_AUDIT.md`: game-by-game implementation, content-count and test matrix.
+- `DOCUMENTATION`: consolidated API, architecture, deployment, testing, game catalog and project reference.
 
 ## Verification commands
 
@@ -63,4 +62,4 @@ Existing local-mode XP rules award only an improved best result. Platform game X
 
 ## Limits to understand
 
-The app does not compile or execute learner-submitted code. Code-edit activities use private, deterministic checks for their authored exercises, including arithmetic and known program patterns; they are not a general compiler or runtime, and do not enforce execution limits. Teacher-created content can be saved and reviewed, but it is not dynamically turned into platform mechanics. The legacy `/api/sessions` route accepts browser-reported summaries for local modes. Browser/device, screen-reader and learning-outcome studies have not been completed. See [the project report](docs/PROJECT_REPORT.md), [testing checklist](docs/TESTING.md), and [evaluation plan](docs/EVALUATION_STUDY.md).
+The app does not compile or execute learner-submitted code. Code-edit activities use private, deterministic checks for their authored exercises, including arithmetic and known program patterns; they are not a general compiler or runtime, and do not enforce execution limits. Teacher-created content can be saved and reviewed, but it is not dynamically turned into platform mechanics. The legacy `/api/sessions` route accepts browser-reported summaries for local modes. Browser/device, screen-reader and learning-outcome studies have not been completed. See [DOCUMENTATION](DOCUMENTATION).
