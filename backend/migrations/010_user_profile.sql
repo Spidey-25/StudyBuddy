@@ -1,0 +1,4 @@
+USE studybuddy;
+
+ALTER TABLE users
+  ADD COLUMN semester TINYINT UNSIGNED NULL;

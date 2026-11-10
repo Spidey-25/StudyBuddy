@@ -1,0 +1,3 @@
+-- Superseded by 005_computing_course_catalog.sql.
+-- Kept as a migration-sequence marker for installations that already recorded
+-- migration 004. The active catalog is technical; no rows are deleted here.

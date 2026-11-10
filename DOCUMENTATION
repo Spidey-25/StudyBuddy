@@ -1,0 +1,296 @@
+# StudyBuddy Documentation
+
+## 1. What the project is
+
+StudyBuddy is a local-first college computing study application. It combines:
+
+- A browser-based single-page dashboard with quizzes, flashcards, timed challenges, typing practice, code exercises, XP, levels, streaks, achievements, history, recommendations and review flows.
+- A Flask/Python API for authentication, subjects, teacher features and persistent platform games.
+- A MySQL database for users, subjects, teacher content, analytics, platform sessions and attempts.
+- A server-validated game platform containing 32 activities across 16 computing subjects.
+
+This is a prototype/class demonstration, not a production learning-management system. It does not claim measured learning improvement. The evaluation plan is only a proposal; no participant study data has been collected.
+
+## 2. Technology and runtime
+
+- Python 3.10+
+- Flask 3.1.2
+- MySQL 8
+- `mysql-connector-python` for database access
+- `python-dotenv` for `.env` configuration
+- Werkzeug password hashing and Flask signed sessions
+- Vanilla JavaScript and HTML; no frontend framework or build step
+- Node.js is used only for frontend syntax and renderer tests
+- `unittest` is used for Python tests
+
+Authentication uses an HTTP-only signed session cookie. Passwords are stored as Werkzeug hashes, never as plaintext. The frontend sends JSON requests and normally relies on the session cookie rather than storing credentials.
+
+## 3. Repository structure
+
+```text
+studybuddy/
+├── app.py                         Root launcher and static-file routes
+├── requirements.txt               Python dependencies
+├── .env.example                   Configuration template
+├── .gitignore                     Ignore rules for secrets and generated files
+├── DOCUMENTATION                  This consolidated project reference
+├── backend/
+│   ├── __init__.py
+│   ├── app.py                     Flask API, authentication and database routes
+│   ├── code_checks.py             Deterministic checks for prepared code exercises
+│   ├── game_catalog.py            Platform game definitions, state and validation
+│   ├── game_content.py            Authored supplemental game levels/content
+│   ├── game_variants.py           Game/content variants
+│   ├── scoring.py                 Score and adaptive-multiplier helpers
+│   └── migrations/                Additive MySQL schema files
+├── frontend/
+│   ├── index.html                 Main SPA, dashboard and local-game logic
+│   ├── games.js                   Platform-game renderers and interactions
+│   ├── legacy-game-content.js     Original local-game content
+│   ├── rotating-game-content.js  Rotating/local content banks
+│   ├── typing-programs.js         Typing-practice content
+│   ├── images/README.txt          Image asset placeholder
+│   └── prototypes/                Older UI prototypes, not active screens
+└── tests/
+    ├── Python unit, API, game, scoring and accessibility tests
+    ├── Node frontend catalog and renderer tests
+    └── Opt-in MySQL integration and end-to-end tests
+```
+
+The root `app.py` is the intended launcher. It loads environment settings, creates the configured database if permitted, applies the schema, seeds development users when their email addresses do not already exist, and starts the Flask application. `backend/app.py` contains the real application and serves the frontend files.
+
+## 4. Local setup and configuration
+
+Install Python 3.10+ and MySQL 8. The MySQL account must be able to create the configured database and tables.
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env with a private SECRET_KEY and MySQL credentials.
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+py app.py
+```
+
+Open `http://127.0.0.1:5000`.
+
+The environment variables are:
+
+- `SECRET_KEY`: long random value used to sign Flask sessions.
+- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`: database connection settings.
+- `APP_HOST`, `APP_PORT`: bind address and port.
+- `FLASK_DEBUG`: development debug switch.
+
+Development seed accounts are created only when the email addresses are absent:
+
+- Student: `student@example.com` / `Student@123`
+- Teacher: `teacher@example.com` / `Teacher@123`
+
+Change or disable these credentials before sharing the app. Keep `.env` private and never commit it. The Flask development server is intended for local use, not public production hosting.
+
+## 5. Database and migrations
+
+Startup performs additive, idempotent schema setup. Existing rows are preserved; migrations do not drop old tables.
+
+The bootstrap is optimized around bulk catalog operations. Branches are inserted in one batch, all branch subjects are generated from one canonical subject dictionary and inserted in one batch, and seed-user existence is checked in one query. Existing seed accounts are not overwritten and do not receive duplicate subject selections. Frequently used relationship lookups have indexes on subject and branch columns.
+
+The canonical subject catalog is defined once in `backend/app.py`; branch availability is stored in `branch_subjects` rather than repeating `(code, name)` records for every branch. This prevents name drift, reduces seed work, and keeps the existing branch-filtered API response shape. Existing teacher-created subjects remain separate and are not deleted.
+
+Core tables:
+
+- `branches`: technical branches/courses.
+- `users`: email, username, display name, password hash, role and branch.
+- `users.semester`: optional persisted student semester.
+- `subjects`: subject catalog and branch relationship.
+- `branch_subjects`: normalized branch-to-subject availability mapping.
+- `user_subjects`: many-to-many student subject selections.
+- `games`: teacher-created content records stored as JSON.
+- `study_sessions`: legacy/local-game summaries.
+- `question_attempts`: legacy per-question analytics.
+- `platform_game_sessions`: authoritative platform-game state, progress, score, status, duration, accuracy, language and reward state.
+- `platform_game_attempts`: each platform action, response, mistake/feedback data and idempotency key.
+
+Migration history:
+
+1. `001_initial.sql` creates users, branches, subjects, selections and teacher games.
+2. `002_analytics.sql` adds legacy study sessions and question attempts.
+3. `003_platform_sessions.sql` adds platform session storage.
+4. `004_common_subject_catalog.sql` adds the common subject catalog.
+5. `005_computing_course_catalog.sql` adds computing course data.
+6. `006_platform_game_attempts.sql` adds per-action platform records.
+7. `007_platform_session_lifecycle.sql` adds active/completed/exited/abandoned lifecycle fields.
+8. `008_legacy_session_lifecycle.sql` adds lifecycle and idempotency support to legacy summaries.
+9. `009_platform_action_idempotency.sql` adds replay protection for platform actions.
+10. `010_user_profile.sql` adds persisted user semester data.
+11. `011_normalize_subjects.sql` adds branch mappings, migrates user selections and removes unused duplicated built-in rows.
+
+The application bootstrap remains compatible with older installations created by earlier migration versions. It creates missing final-form tables, adds missing lifecycle/idempotency columns and indexes without dropping rows, and applies idempotent normalization to legacy terminal session timestamps.
+
+## 6. Backend design
+
+`backend/app.py` is responsible for:
+
+- Loading configuration and opening MySQL connections.
+- Creating/upgrading the database schema.
+- Registration, login, logout and current-user lookup.
+- Role and ownership checks.
+- Subject and branch responses.
+- Starting, reading, updating and ending platform sessions.
+- Recording legacy local-game summaries.
+- Teacher content and analytics.
+- Serving the SPA and JavaScript assets.
+
+`backend/game_catalog.py` is the authoritative platform-game engine. It exposes public prompt data while keeping answer keys and validation rules private. It creates randomized initial session state, validates game-specific actions and returns state/results.
+
+`backend/game_content.py` contains authored levels and supplemental content. `backend/game_variants.py` contains game variations. `backend/code_checks.py` checks prepared code-edit answers using deterministic fixtures. It does not compile or execute arbitrary learner code.
+
+`backend/scoring.py` contains score calculation and adaptive-multiplier helpers based on correctness, time and repeated mistakes.
+
+## 7. HTTP routes
+
+All API routes return JSON. Authenticated routes use the HTTP-only session cookie.
+
+### Public/authentication and catalog
+
+- `GET /api/health`: MySQL health check.
+- `GET /api/branches`: active branches/courses.
+- `POST /api/register`: creates a student or teacher account; there is no email verification.
+- `POST /api/login`: authenticates by email and password.
+- `POST /api/logout`: clears the Flask session.
+- `GET /api/me`: current user and selected subjects.
+- `GET /api/subjects?branch=cse`: subject catalog, optionally filtered by branch.
+- `GET /api/game-catalog?subject=DSA`: public game metadata, prompts, choices, hints and objectives. Answer keys are removed.
+
+### Student platform-game routes
+
+- `POST /api/game-sessions`: starts a game. DSA requires `language` equal to `C++` or `Java`.
+- `GET /api/game-sessions`: lists the current user's recent sessions.
+- `GET /api/game-sessions/<id>`: reads only the current user's session/result.
+- `POST /api/game-sessions/<id>/action`: validates and stores one game action.
+- `POST /api/game-sessions/<id>/exit`: closes an active session as `exited` or `abandoned`.
+- `GET /api/game-progress`: returns current counts, completion, best score and last-play information.
+
+Platform session IDs are owner-scoped. A terminal session cannot accept further actions. Starting a new game abandons a previous active run. Refreshing the page allows an active run to resume; leaving through SPA navigation closes it.
+
+Every action includes a UUID `client_action_id`. Repeating the same ID returns the original response instead of applying the action twice. Flask, not the browser, computes score, accuracy, completion, duration and XP. A completed level awards 100 points; incorrect actions record a mistake and do not advance. Completed sessions receive their reward once.
+
+### Student and teacher management
+
+- `POST /api/me/subjects`: replaces a student's selected subject IDs.
+- `POST /api/me/profile`: persists the authenticated user's display name and semester.
+- `POST /api/subjects`: teacher-only subject creation.
+- `GET /api/teacher/games`: teacher-only list of saved game content.
+- `POST /api/games`: teacher-only creation of saved subject/game content.
+- `GET /api/teacher/analytics`: teacher-only aggregate session, topic and platform analytics.
+- `POST /api/sessions`: legacy local-mode summary endpoint. It requires a stable `client_session_id` and a `completed` or `abandoned` status. `(user_id, client_session_id)` prevents duplicate writes.
+
+Legacy local-mode scores remain browser-reported and are therefore not tamper-proof. Teacher-created rows are saved and reviewable but are not dynamically converted into playable platform mechanics.
+
+### Frontend asset routes
+
+- `GET /`: serves `frontend/index.html`.
+- `GET /games.js`: serves platform renderers.
+- `GET /legacy-game-content.js`: serves original local content.
+- `GET /rotating-game-content.js`: serves rotating content.
+- `GET /typing-programs.js`: serves typing data.
+- `GET /images/<filename>`: serves image assets.
+
+## 8. Frontend behavior
+
+`frontend/index.html` contains the SPA layout, dashboard, authentication UI, local study modes, platform integration, teacher views and inline application logic. It uses `fetch()` for API calls and browser storage for preserved local progress.
+
+The local progress store uses the `studybuddy.v1` key. DSA language preference is stored separately. Local study modes include quiz, flashcards, timed challenge, code sequencing, missing-line practice, typing, memory matching, XP, levels, streaks, achievements, charts, recommendations, saved games and review.
+
+`frontend/games.js` renders the dedicated platform mechanics. It preserves local selections where appropriate, requests the public catalog, starts/resumes sessions, submits UUID-keyed actions, shows hints/feedback, and closes sessions during navigation.
+
+## 9. Platform game catalog
+
+There are 32 activities across 16 active technical subjects. Each has progressive levels, hints, explanations, score tracking, retry and persisted history. Most games have at least four levels; Python Logic Builder has twelve.
+
+Core subjects and activities:
+
+- C++: Code Debugger; Output & Logic Challenge.
+- Java: Code Debugger; Object-Oriented Design Lab.
+- Python: Debugging Lab; Logic Builder.
+- DSA: Algorithm Arena; Data Structure Visualizer. The learner chooses C++ or Java and the choice is stored in session history.
+- DBMS: SQL Query Lab; ER Diagram Builder.
+- Operating Systems: CPU Scheduling Simulator; Memory Allocation Challenge.
+- Computer Networks: Packet Routing Simulator; Network Troubleshooting Lab.
+- Web Development: Web Coding Playground; UI Debugging Challenge.
+
+Additional enabled subjects:
+
+- C: Code Debugger; Memory Trace.
+- Software Engineering: Requirements Prioritizer; Test Design Lab.
+- AI: Inference Trace; Feature Selection Lab.
+- ML: Metric Match; Overfit Repair Lab.
+- Cybersecurity: Incident Response; Phishing Defense.
+- Cloud Computing: Architecture Builder; Cost Estimator.
+- Embedded Systems: Interrupt Trace; Pin Mapping.
+- IoT: Protocol Lab; Topology Builder.
+
+Mechanics include code repair, output tracing, design choices, ordered steps, stack/queue tracing, SQL entry, ER cardinality, scheduling, allocation inputs, route construction, diagnosis choices, responsive/accessibility fixes, requirements prioritization, testing design, inference, metrics, incident response, cloud design, interrupts and IoT topology.
+
+The normal flow is:
+
+1. The browser requests public catalog data.
+2. The learner starts a session.
+3. The browser submits a mechanic-specific action.
+4. Flask reloads authoritative state, validates the action privately and records the result.
+5. The learner receives progress, score and explanatory feedback.
+6. Completion stores accuracy, duration, score and one-time XP.
+
+New runs randomize questions within difficulty and avoid beginning with the previous run's final question. Prepared code exercises compare constrained responses against private fixtures. They are not a compiler, runtime, hidden-test service or arbitrary code-execution environment.
+
+## 10. Roles and trust boundaries
+
+- Students can manage their own subject selections, play games and read their own progress/history.
+- Teachers can create subjects/content and view aggregate analytics.
+- Session ownership is checked for platform reads and writes.
+- Platform answer rules, scoring and rewards are server-side.
+- Public catalog responses redact answer keys.
+- Legacy local summaries trust browser-reported metrics by design.
+- Teacher content is persisted but not automatically playable.
+
+Never add `subprocess` execution for learner code inside Flask. A real executable coding mode would require a separate isolated runner with language allowlists, no network, read-only filesystem, CPU/memory/process/time limits and a narrow queue/API boundary.
+
+## 11. Testing and verification
+
+Standard checks:
+
+```powershell
+py -m unittest discover -s tests -v
+node --test tests/test_frontend_catalog.js tests/test_frontend_games.js
+node --check frontend/games.js
+py -m py_compile app.py backend/app.py backend/game_catalog.py backend/game_content.py backend/code_checks.py
+```
+
+Optional MySQL checks:
+
+```powershell
+$env:PLATFORM_MYSQL_INTEGRATION = '1'
+py -m unittest tests.test_platform_mysql_integration -v
+py -m unittest tests.test_end_to_end -v
+Remove-Item Env:PLATFORM_MYSQL_INTEGRATION
+```
+
+Tests cover catalog IDs and levels, mechanic mappings, validators, private code fixtures, answer redaction, API contracts, lifecycle transitions, idempotency, score/completion rules, accessibility markup, frontend rendering, authentication, subject selection, DSA persistence, teacher permissions, ownership and progress/history. Integration tests require a disposable local MySQL database and clean up their temporary records.
+
+Manual follow-up checks include real browser flows at phone/tablet/desktop widths, keyboard navigation, visible focus, status announcements, zoom to 200%, reduced motion, screen-reader behavior, all local modes, all platform mechanics, reload/resume, teacher tools and logout. Full device/browser and screen-reader testing has not yet been completed.
+
+## 12. Known limitations and terminology
+
+- **Local mode**: the original browser-oriented study experience. Its summary endpoint accepts browser-reported final metrics.
+- **Platform game**: a server-backed activity with authoritative session state and action validation.
+- **Mechanic**: the interaction style used by a game, such as reorder, code edit, trace input or design choice.
+- **Catalog**: the public list of playable platform-game definitions.
+- **Level**: one difficulty-graded task inside a game.
+- **Attempt/action**: one submitted answer or interaction for a platform level.
+- **Idempotency**: replaying the same client identifier does not duplicate a write or reward.
+- **Terminal session**: a session marked completed, exited or abandoned; it cannot receive new actions.
+- **Legacy session**: a browser-local study session summarized to the older API.
+- **XP**: experience points used by the progress dashboard; platform rewards are committed once.
+- **Additive migration**: schema change that creates or adds fields without deleting existing data.
+- **Trust boundary**: the point where untrusted browser input becomes server-validated data.
+
+Remaining gaps are intentional: no arbitrary code execution, no dynamic conversion of teacher content into platform games, no production deployment configuration, incomplete real-browser/accessibility QA, and no completed learning-outcome study.
